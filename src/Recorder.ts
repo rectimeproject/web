@@ -127,7 +127,10 @@ export default class Recorder extends EventEmitter<{
   }: Partial<{
     frameSize: number;
     maxDataBytes: number;
-  }> = {}): Promise<string | null> {
+  }> = {}): Promise<{
+    encoderId: string;
+    bitrate: number;
+  } | null> {
     if (this.#currentState.type !== RecorderStateType.Idle) {
       console.error(
         'start() called, but recorder was in invalid state: %o',
@@ -347,7 +350,18 @@ export default class Recorder extends EventEmitter<{
      * start port
      */
     workletNode.port.start();
-    return encoderId.value;
+
+    const getBitrateResult = await this.#opus.client.sendMessage(
+      getFromEncoder(OPUS_GET_BITRATE(encoderId.value))
+    );
+    if ('failures' in getBitrateResult) {
+      console.error('failed to get bitrate with error: %o', getBitrateResult);
+      return null;
+    }
+    return {
+      encoderId: encoderId.value,
+      bitrate: getBitrateResult.value,
+    };
   }
   async #setStateToIdle() {
     const currentState = this.#currentState;

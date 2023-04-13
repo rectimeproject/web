@@ -1,6 +1,5 @@
 import {
-  // UIEventHandler,
-  // useMemo,
+  ChangeEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,10 +13,6 @@ import useRecorderContext from './useRecorderContext';
 import useRecorderDatabase from './useRecorderDatabase';
 import { CodecId } from 'opus-codec-worker/actions/actions';
 import { RecorderStateType } from './Recorder';
-// import useRecordingPlayer from './useRecordingPlayer';
-// import { Link } from 'react-router-dom';
-// import classNames from 'classnames';
-// import Icon from './Icon';
 import { filesize } from 'filesize';
 import Icon from './Icon';
 import AnalyserNodeView from './AnalyserNodeView';
@@ -135,11 +130,22 @@ export default function RecordingListScreen() {
       analyserNodeRef.current = state.analyserNode;
     });
   }, [recording, navigatorStorage, recorderContext, analyserNodeRef]);
+  const onChangeBitrate = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      if (
+        Number.isInteger(e.target.valueAsNumber) ||
+        !Number.isNaN(e.target.valueAsNumber)
+      ) {
+        recordings.setBitrate(e.target.valueAsNumber);
+      }
+    },
+    [recordings]
+  );
   return (
     <div className="recording-list-screen">
       <div className="container">
         <div className="row">
-          <div className="col-lg-12 d-flex">
+          <div className="col-md-8 d-flex">
             <div className="d-flex flex-column flex-fill">
               <div className="flex-fill">
                 <div className="canvas-container d-flex justify-content-end">
@@ -186,6 +192,27 @@ export default function RecordingListScreen() {
               </div>
             </div>
           </div>
+          {recordings.recording !== null && (
+            <div className="col-md-4">
+              <h4>Additional options</h4>
+              <label htmlFor="bitrate" className="form-label">
+                Bitrate
+              </label>
+              <div className="d-flex">
+                <input
+                  type="range"
+                  id="bitrate"
+                  className="form-range flex-fill"
+                  onChange={onChangeBitrate}
+                  value={recordings.recording.bitrate}
+                  min={12000}
+                  step={2000}
+                  max={96000}
+                />
+                <div className="mx-3">{recordings.recording.bitrate}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

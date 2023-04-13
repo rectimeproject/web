@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import useRecorderContext from './useRecorderContext';
+import { setToEncoder } from 'opus-codec-worker/actions/actions';
+import { OPUS_SET_BITRATE } from 'opus-codec-worker/actions/opus';
+import useDebounce from './useDebounce';
 
 export default function useRecordings() {
   const recorderContext = useRecorderContext();
@@ -7,7 +10,58 @@ export default function useRecordings() {
   const [isStoppingToRecord, setIsStoppingToRecord] = useState(false);
   const [recording, setRecording] = useState<{
     encoderId: string;
+    bitrate: number;
   } | null>(null);
+  const debounce = useDebounce(100);
+  const [isSettingBitrate, setIsSettingBitrate] = useState(false);
+  const setBitrate = useCallback(
+    (newBitrate: number) =>
+      debounce.run(() => {
+        if (recording === null || isSettingBitrate) {
+          return;
+        }
+        setIsSettingBitrate(true);
+        const oldBitrate = recording.bitrate;
+        setRecording((recording) =>
+          recording
+            ? {
+                ...recording,
+                bitrate: newBitrate,
+              }
+            : recording
+        );
+        recorderContext.opus.client
+          .sendMessage(
+            setToEncoder(OPUS_SET_BITRATE(recording.encoderId, newBitrate))
+          )
+          .then((result) => {
+            if ('failures' in result) {
+              console.error(
+                'failed to set bitrate with failures: %s',
+                result.failures.join(', ')
+              );
+              setRecording((recording) =>
+                recording
+                  ? {
+                      ...recording,
+                      bitrate: oldBitrate,
+                    }
+                  : recording
+              );
+            }
+          })
+          .finally(() => {
+            setIsSettingBitrate(false);
+          });
+      }),
+    [
+      debounce,
+      setIsSettingBitrate,
+      isSettingBitrate,
+      recorderContext,
+      recording,
+    ]
+  );
   const startRecording = useCallback(() => {
     if (isStartingToRecord || recording !== null) {
       return;
@@ -18,17 +72,11 @@ export default function useRecordings() {
       recorderContext.audioContext.resume(),
     ])
       .then(async ([recorder]) => {
-        const encoderId = recorder
+        const result = recorder
           ? await recorder.start({ maxDataBytes: 1024 * 1024 * 1 })
           : null;
 
-        setRecording(
-          encoderId
-            ? {
-                encoderId,
-              }
-            : null
-        );
+        setRecording(result);
       })
       .catch((reason) => {
         console.error('failed to start recording with error: %o', reason);
@@ -68,10 +116,14 @@ export default function useRecordings() {
       startRecording,
       isStoppingToRecord,
       stopRecording,
+      isSettingBitrate,
+      setBitrate,
       isRecording: recording !== null,
     }),
     [
       recording,
+      setBitrate,
+      isSettingBitrate,
       isStoppingToRecord,
       isStartingToRecord,
       startRecording,
