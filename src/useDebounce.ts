@@ -29,9 +29,9 @@ export default function useDebounce(ms: number) {
         }
       }, ms);
     },
-    [ms]
+    [ms, reset]
   );
-  useEffect(() => reset, []);
+  useEffect(() => () => reset(), [reset]);
   return useMemo(
     () => ({
       run,
