@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router';
 import useNavigatorStorage from './useNavigatorStorage';
 import ActivityIndicator from './ActivityIndicator';
 import useMediaDevices from './useMediaDevices';
+import useAppSettings from './useAppSettings';
 
 export default function RecordingListScreen() {
   const recordings = useRecordings();
@@ -127,12 +128,6 @@ export default function RecordingListScreen() {
     [recordings]
   );
   const [deviceId, setDeviceId] = useState<string | null>(null);
-  const onChangeDeviceId = useCallback<ChangeEventHandler<HTMLSelectElement>>(
-    (e) => {
-      setDeviceId(e.target.value);
-    },
-    []
-  );
   const startRecording = useCallback(() => {
     const device =
       (deviceId === null
@@ -143,6 +138,35 @@ export default function RecordingListScreen() {
       device,
     });
   }, [recordings, deviceId, mediaDevices]);
+  const appSettings = useAppSettings();
+  useEffect(() => {
+    if (appSettings.preferredDevice !== null) {
+      setDeviceId(appSettings.preferredDevice.deviceId);
+    } else {
+      appSettings.getPreferredDevice();
+    }
+  }, [appSettings, setDeviceId]);
+  const onChangeDeviceId = useCallback<ChangeEventHandler<HTMLSelectElement>>(
+    (e) => {
+      const device = mediaDevices.devices.find(
+        (d) => d.deviceId === e.target.value
+      );
+      if (device) {
+        setDeviceId(device.deviceId);
+        recordings.setMicrophone(device);
+        appSettings.setPreferredDevice(device);
+      }
+    },
+    [mediaDevices.devices, setDeviceId, appSettings, recordings]
+  );
+  // const { setMicrophone } = recordings;
+  // useEffect(() => {
+  //   const device = mediaDevices.devices.find((d) => d.deviceId === deviceId);
+  //   if (device) {
+  //     appSettings.setPreferredDevice(device);
+  //     setMicrophone(device);
+  //   }
+  // }, [deviceId, appSettings, setMicrophone, mediaDevices.devices]);
   useEffect(() => {
     checkRecordingInterval.setCallback(updateCurrentRecording);
   }, [checkRecordingInterval, updateCurrentRecording]);
@@ -174,13 +198,6 @@ export default function RecordingListScreen() {
       mediaDevices.enumerateDevices();
     }
   }, [mediaDevices]);
-  const { setMicrophone } = recordings;
-  useEffect(() => {
-    const device = mediaDevices.devices.find((d) => d.deviceId === deviceId);
-    if (device) {
-      setMicrophone(device);
-    }
-  }, [deviceId, setMicrophone, mediaDevices.devices]);
   return (
     <div className="recording-list-screen">
       <div className="container">
