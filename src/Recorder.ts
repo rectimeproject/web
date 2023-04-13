@@ -58,6 +58,10 @@ interface IRecordingRecorderState {
   encoderId: CodecId;
   analyserNode: AnalyserNode<IAudioContext>;
   sampleCount: number;
+  device: {
+    deviceId: string;
+    groupId: string;
+  } | null;
 }
 
 interface IStartingToRecordRecorderState
@@ -121,12 +125,69 @@ export default class Recorder extends EventEmitter<{
   public currentState(): Readonly<RecorderState> {
     return this.#currentState;
   }
+  public async setInputDevice(device: MediaDeviceInfo) {
+    const state = this.#currentState;
+    switch (state.type) {
+      case RecorderStateType.Idle:
+      case RecorderStateType.StoppingToRecord:
+      case RecorderStateType.StartingToRecord:
+        return false;
+      case RecorderStateType.Recording: {
+        if (
+          state.device !== null &&
+          state.device.deviceId === device.deviceId &&
+          state.device.groupId === device.groupId
+        ) {
+          return true;
+        }
+        let newStream: MediaStream;
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              deviceId: device.deviceId,
+              groupId: device.groupId,
+            },
+          });
+        } catch (reason) {
+          console.error('failed to get media stream with error: %o', reason);
+          return false;
+        }
+        const oldStream = state.mediaStream;
+        const oldSourceNode = state.mediaStreamAudioSourceNode;
+        const newSourceNode =
+          this.#audioContext.createMediaStreamSource(newStream);
+        /**
+         * disconnect old source node
+         */
+        oldSourceNode.disconnect(state.analyserNode);
+        /**
+         * connect new source node
+         */
+        newSourceNode.connect(state.analyserNode);
+        /**
+         * set new properties to state
+         */
+        state.mediaStreamAudioSourceNode = newSourceNode;
+        state.mediaStream = newStream;
+        state.device = device;
+        /**
+         * destroy old stream
+         */
+        for (const t of oldStream.getTracks()) {
+          t.stop();
+        }
+        return true;
+      }
+    }
+  }
   public async start({
+    device,
     maxDataBytes = 500,
     frameSize: maybeFrameSize,
   }: Partial<{
     frameSize: number;
     maxDataBytes: number;
+    device: MediaDeviceInfo | null;
   }> = {}): Promise<{
     encoderId: string;
     bitrate: number;
@@ -177,7 +238,12 @@ export default class Recorder extends EventEmitter<{
     let mediaStream: MediaStream;
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: device
+          ? {
+              deviceId: device.deviceId,
+              groupId: device.groupId,
+            }
+          : true,
       });
     } catch (reason) {
       console.error('failed to get user media with error: %o', reason);
@@ -287,6 +353,12 @@ export default class Recorder extends EventEmitter<{
     workletNode.connect(this.#audioContext.destination);
     const recordingState: IRecordingRecorderState = {
       sampleCount: 0,
+      device: device
+        ? {
+            deviceId: device.deviceId,
+            groupId: device.groupId,
+          }
+        : null,
       type: RecorderStateType.Recording,
       analyserNode,
       encoderId: encoderId.value,

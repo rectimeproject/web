@@ -1,10 +1,12 @@
 import {
   ChangeEvent,
+  ChangeEventHandler,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import useInterval from './useInterval';
 import secondsToHumanReadable from './secondsToHumanReadable';
@@ -20,6 +22,7 @@ import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
 import { useNavigate } from 'react-router';
 import useNavigatorStorage from './useNavigatorStorage';
 import ActivityIndicator from './ActivityIndicator';
+import useMediaDevices from './useMediaDevices';
 
 export default function RecordingListScreen() {
   const recordings = useRecordings();
@@ -31,6 +34,7 @@ export default function RecordingListScreen() {
     },
     [db]
   );
+  const mediaDevices = useMediaDevices();
   const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
   const updateCurrentRecording = useCallback(() => {
     if (recordings.recording !== null) {
@@ -111,25 +115,6 @@ export default function RecordingListScreen() {
     }
     return 0;
   }, [navigatorStorage, recording]);
-  useEffect(() => {
-    checkRecordingInterval.setCallback(updateCurrentRecording);
-  }, [checkRecordingInterval, updateCurrentRecording]);
-  useEffect(() => {
-    if (recordings.isRecording) {
-      checkRecordingInterval.start();
-    } else {
-      checkRecordingInterval.stop();
-    }
-  }, [recordings.isRecording, checkRecordingInterval]);
-  useEffect(() => {
-    navigatorStorage.estimate();
-    recorderContext.recorder.then((rec) => {
-      const state = rec?.currentState() ?? null;
-      if (state === null || !('analyserNode' in state) || !state.analyserNode)
-        return;
-      analyserNodeRef.current = state.analyserNode;
-    });
-  }, [recording, navigatorStorage, recorderContext, analyserNodeRef]);
   const onChangeBitrate = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       if (
@@ -141,11 +126,66 @@ export default function RecordingListScreen() {
     },
     [recordings]
   );
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const onChangeDeviceId = useCallback<ChangeEventHandler<HTMLSelectElement>>(
+    (e) => {
+      setDeviceId(e.target.value);
+    },
+    []
+  );
+  const startRecording = useCallback(() => {
+    const device =
+      (deviceId === null
+        ? mediaDevices.devices.find((d) => d.deviceId === deviceId)
+        : mediaDevices.devices[0]) ?? null;
+
+    recordings.startRecording({
+      device,
+    });
+  }, [recordings, deviceId, mediaDevices]);
+  useEffect(() => {
+    checkRecordingInterval.setCallback(updateCurrentRecording);
+  }, [checkRecordingInterval, updateCurrentRecording]);
+  useEffect(() => {
+    if (recordings.isRecording) {
+      checkRecordingInterval.start();
+    } else {
+      checkRecordingInterval.stop();
+    }
+  }, [recordings.isRecording, checkRecordingInterval]);
+  useEffect(() => {
+    if (!navigatorStorage.hasLoadedInitialEstimation) {
+      navigatorStorage.estimate();
+    }
+  }, [navigatorStorage]);
+  useEffect(() => {
+    recorderContext.recorder.then((rec) => {
+      const state = rec?.currentState() ?? null;
+      if (state === null || !('analyserNode' in state) || !state.analyserNode)
+        return;
+      analyserNodeRef.current = state.analyserNode;
+    });
+  }, [recording, recorderContext, analyserNodeRef]);
+  /**
+   * enumerate devices
+   */
+  useEffect(() => {
+    if (!mediaDevices.hasLoadedInitialDevices) {
+      mediaDevices.enumerateDevices();
+    }
+  }, [mediaDevices]);
+  const { setMicrophone } = recordings;
+  useEffect(() => {
+    const device = mediaDevices.devices.find((d) => d.deviceId === deviceId);
+    if (device) {
+      setMicrophone(device);
+    }
+  }, [deviceId, setMicrophone, mediaDevices.devices]);
   return (
     <div className="recording-list-screen">
       <div className="container">
         <div className="row">
-          <div className="col-md-8 d-flex">
+          <div className="d-flex col-md-8">
             <div className="d-flex flex-column flex-fill">
               <div className="flex-fill">
                 <div className="canvas-container d-flex justify-content-end">
@@ -169,7 +209,7 @@ export default function RecordingListScreen() {
                     onClick={
                       recordings.isRecording
                         ? recordings.stopRecording
-                        : recordings.startRecording
+                        : startRecording
                     }
                   >
                     {recordings.isStoppingToRecord ||
@@ -192,27 +232,49 @@ export default function RecordingListScreen() {
               </div>
             </div>
           </div>
-          {recordings.recording !== null && (
-            <div className="col-md-4">
-              <h4>Additional options</h4>
-              <label htmlFor="bitrate" className="form-label">
-                Bitrate
-              </label>
-              <div className="d-flex">
-                <input
-                  type="range"
-                  id="bitrate"
-                  className="form-range flex-fill"
-                  onChange={onChangeBitrate}
-                  value={recordings.recording.bitrate}
-                  min={12000}
-                  step={2000}
-                  max={96000}
-                />
-                <div className="mx-3">{recordings.recording.bitrate}</div>
+          <div className="col-md-4">
+            <h4>Additional options</h4>
+            {recordings.recording !== null && (
+              <div className="mb-3">
+                <label htmlFor="bitrate" className="form-label">
+                  Bitrate
+                </label>
+                <div className="d-flex">
+                  <input
+                    type="range"
+                    id="bitrate"
+                    className="form-range flex-fill"
+                    onChange={onChangeBitrate}
+                    value={recordings.recording.bitrate}
+                    min={12000}
+                    step={2000}
+                    max={96000}
+                  />
+                  <div className="mx-3">{recordings.recording.bitrate}</div>
+                </div>
               </div>
+            )}
+            <div>
+              <label htmlFor="microphone_device" className="form-label">
+                Microphone
+              </label>
+              <select
+                id="microphone_device"
+                className="form-select"
+                onChange={onChangeDeviceId}
+                value={deviceId ?? ''}
+              >
+                <option></option>
+                {mediaDevices.devices
+                  .filter((d) => d.kind === 'audioinput')
+                  .map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))}
+              </select>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

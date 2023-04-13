@@ -5,6 +5,7 @@ import Icon from './Icon';
 import secondsToHumanReadable from './secondsToHumanReadable';
 import { useNavigate } from 'react-router';
 import ActivityIndicator from './ActivityIndicator';
+import { Link } from 'react-router-dom';
 
 export default function RecordingListScreen() {
   const db = useRecorderDatabase();
@@ -60,37 +61,45 @@ export default function RecordingListScreen() {
     <div className="container recording-list-screen">
       <div className="row">
         <div className="col-lg-12">
-          {recordings.map((r) => (
-            <div className="d-flex recording" key={r.id}>
-              <div className="flex-fill">
-                <div>
-                  {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
-                    DateTime.DATETIME_SHORT
-                  )} | ${secondsToHumanReadable(r.duration / 1000)}`}
-                </div>
-                <div>
-                  <h4>
-                    <input
-                      value={newRecordingNames.get(r.id) ?? r.name}
-                      onChange={r.onChangeNewRecordingName}
-                      style={{
-                        border: 'none',
-                      }}
-                    />
-                  </h4>
-                </div>
+          {!recordings.length ? (
+            <>
+              <div className="text-center">
+                No recordings yet. <Link to="/">Record</Link> something!
               </div>
-              <div>
-                {db.updatingRecordingIds.includes(r.id) ? (
-                  <ActivityIndicator />
-                ) : (
-                  <div className="play-arrow" onClick={r.onClickPlay}>
-                    <Icon name="headphones" />
+            </>
+          ) : (
+            recordings.map((r) => (
+              <div className="d-flex recording" key={r.id}>
+                <div className="flex-fill">
+                  <div>
+                    {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
+                      DateTime.DATETIME_SHORT
+                    )} | ${secondsToHumanReadable(r.duration / 1000)}`}
                   </div>
-                )}
+                  <div>
+                    <h4>
+                      <input
+                        value={newRecordingNames.get(r.id) ?? r.name}
+                        onChange={r.onChangeNewRecordingName}
+                        style={{
+                          border: 'none',
+                        }}
+                      />
+                    </h4>
+                  </div>
+                </div>
+                <div>
+                  {db.updatingRecordingIds.includes(r.id) ? (
+                    <ActivityIndicator />
+                  ) : (
+                    <div className="play-arrow" onClick={r.onClickPlay}>
+                      <Icon name="headphones" />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

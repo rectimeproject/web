@@ -10,6 +10,8 @@ export default function useNavigatorStorage() {
     null
   );
   const [isEstimating, setIsEstimating] = useState(false);
+  const [hasLoadedInitialEstimation, setHasLoadedInitialEstimation] =
+    useState(false);
   const estimate = useCallback(() => {
     if (isEstimating) {
       return;
@@ -29,10 +31,16 @@ export default function useNavigatorStorage() {
       })
       .finally(() => {
         setIsEstimating(false);
+        setHasLoadedInitialEstimation(true);
       });
   }, [setEstimateResult, isEstimating, setIsEstimating]);
   return useMemo(
-    () => ({ isEstimating, estimate, estimateResult }),
-    [estimate, estimateResult, isEstimating]
+    () => ({
+      hasLoadedInitialEstimation,
+      isEstimating,
+      estimate,
+      estimateResult,
+    }),
+    [estimate, estimateResult, hasLoadedInitialEstimation, isEstimating]
   );
 }

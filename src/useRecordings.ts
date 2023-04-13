@@ -62,36 +62,60 @@ export default function useRecordings() {
       recording,
     ]
   );
-  const startRecording = useCallback(() => {
-    if (isStartingToRecord || recording !== null) {
-      return;
-    }
-    setIsStartingToRecord(true);
-    Promise.all([
-      recorderContext.recorder,
-      recorderContext.audioContext.resume(),
-    ])
-      .then(async ([recorder]) => {
-        const result = recorder
-          ? await recorder.start({ maxDataBytes: 1024 * 1024 * 1 })
-          : null;
+  const [settingMicrophone, setSettingMicrophone] = useState(false);
+  const setMicrophone = useCallback(
+    (device: MediaDeviceInfo) => {
+      if (settingMicrophone) {
+        return;
+      }
+      setSettingMicrophone(true);
+      recorderContext.recorder
+        .then(async (rec) => {
+          if (rec) {
+            if (!rec.setInputDevice(device)) {
+              console.error('failed to set device: %o', device);
+            }
+          }
+        })
+        .finally(() => {
+          setSettingMicrophone(false);
+        });
+    },
+    [recorderContext, settingMicrophone, setSettingMicrophone]
+  );
+  const startRecording = useCallback(
+    ({ device }: { device: MediaDeviceInfo | null }) => {
+      if (isStartingToRecord || recording !== null) {
+        return;
+      }
+      setIsStartingToRecord(true);
+      Promise.all([
+        recorderContext.recorder,
+        recorderContext.audioContext.resume(),
+      ])
+        .then(async ([recorder]) => {
+          const result = recorder
+            ? await recorder.start({ device, maxDataBytes: 1024 * 1024 * 1 })
+            : null;
 
-        setRecording(result);
-      })
-      .catch((reason) => {
-        console.error('failed to start recording with error: %o', reason);
-        setRecording(null);
-      })
-      .finally(() => {
-        setIsStartingToRecord(false);
-      });
-  }, [
-    recorderContext,
-    setRecording,
-    recording,
-    isStartingToRecord,
-    setIsStartingToRecord,
-  ]);
+          setRecording(result);
+        })
+        .catch((reason) => {
+          console.error('failed to start recording with error: %o', reason);
+          setRecording(null);
+        })
+        .finally(() => {
+          setIsStartingToRecord(false);
+        });
+    },
+    [
+      recorderContext,
+      setRecording,
+      recording,
+      isStartingToRecord,
+      setIsStartingToRecord,
+    ]
+  );
   const stopRecording = useCallback(() => {
     if (isStoppingToRecord) {
       return;
@@ -114,6 +138,7 @@ export default function useRecordings() {
       recording,
       isStartingToRecord,
       startRecording,
+      setMicrophone,
       isStoppingToRecord,
       stopRecording,
       isSettingBitrate,
@@ -125,6 +150,7 @@ export default function useRecordings() {
       setBitrate,
       isSettingBitrate,
       isStoppingToRecord,
+      setMicrophone,
       isStartingToRecord,
       startRecording,
       stopRecording,
