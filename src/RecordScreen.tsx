@@ -24,6 +24,7 @@ import useNavigatorStorage from './useNavigatorStorage';
 import ActivityIndicator from './ActivityIndicator';
 import useMediaDevices from './useMediaDevices';
 import useAppSettings from './useAppSettings';
+import useDebounce from './useDebounce';
 
 export default function RecordingListScreen() {
   const recordings = useRecordings();
@@ -116,17 +117,35 @@ export default function RecordingListScreen() {
     }
     return 0;
   }, [navigatorStorage, recording]);
-  const onChangeBitrate = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      if (
-        Number.isInteger(e.target.valueAsNumber) ||
-        !Number.isNaN(e.target.valueAsNumber)
-      ) {
-        recordings.setBitrate(e.target.valueAsNumber);
+  const [localBitrate, setLocalBitrate] = useState<number | null>(null);
+  const onChangeBitrate = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    if (
+      Number.isInteger(e.target.valueAsNumber) ||
+      !Number.isNaN(e.target.valueAsNumber)
+    ) {
+      setLocalBitrate(e.target.valueAsNumber);
+    }
+  }, []);
+  /**
+   * if current recording bitrate changes, change local bitrate
+   */
+  const currentRecordingStateBitrate = recordings.recording?.bitrate ?? null;
+  useEffect(() => {
+    if (currentRecordingStateBitrate !== null) {
+      setLocalBitrate(currentRecordingStateBitrate);
+    }
+  }, [setLocalBitrate, currentRecordingStateBitrate]);
+  /**
+   * if local bitrate changes, change current recording bitrate
+   */
+  const debounce = useDebounce(1000);
+  useEffect(() => {
+    debounce.run(() => {
+      if (localBitrate !== null) {
+        recordings.setBitrate(localBitrate);
       }
-    },
-    [recordings]
-  );
+    });
+  }, [localBitrate, debounce, recordings]);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const startRecording = useCallback(() => {
     const device =
@@ -251,7 +270,7 @@ export default function RecordingListScreen() {
           </div>
           <div className="col-md-4">
             <h4>Additional options</h4>
-            {recordings.recording !== null && (
+            {recordings.recording !== null && localBitrate !== null && (
               <div className="mb-3">
                 <label htmlFor="bitrate" className="form-label">
                   Bitrate
@@ -262,12 +281,12 @@ export default function RecordingListScreen() {
                     id="bitrate"
                     className="form-range flex-fill"
                     onChange={onChangeBitrate}
-                    value={recordings.recording.bitrate}
-                    min={12000}
-                    step={2000}
+                    value={localBitrate}
+                    min={8000}
+                    step={1000}
                     max={96000}
                   />
-                  <div className="mx-3">{recordings.recording.bitrate}</div>
+                  <div className="mx-3">{localBitrate}</div>
                 </div>
               </div>
             )}

@@ -3,15 +3,25 @@ import { Database } from 'idb-javascript';
 import { boundMethod } from 'autobind-decorator';
 import DatabaseThreadDummy from 'idb-javascript/src/DatabaseThreadDummy';
 
+export interface IRecordingDataOffset {
+  /**
+   * current duration offset
+   */
+  currentDuration: number;
+  /**
+   * duration of this slice
+   */
+  sliceDuration: number;
+  start: number;
+  end: number;
+}
+
 export type RecordingDataV1 = {
   id: string;
   recordingId: string;
   createdAt: Date;
   data: Blob;
-  offsets: {
-    start: number;
-    end: number;
-  }[];
+  offsets: IRecordingDataOffset[];
   version: 1;
 };
 
@@ -36,9 +46,19 @@ export interface IPaginationFilter {
   limit: number;
 }
 
+export interface IRecordingNote {
+  recordingId: string;
+  id: string;
+  createdAt: Date;
+  duration: number;
+  contents: string;
+  title: string;
+}
+
 export default class RecorderDatabase extends Database<{
   recordings: RecordingV1;
   recordingData: RecordingDataV1;
+  recordingNotes: IRecordingNote;
 }> {
   // readonly #encodingQueue = new Map<string, IBlobPartQueue>();
   public constructor(databaseName: string) {
@@ -49,6 +69,7 @@ export default class RecorderDatabase extends Database<{
   public async getAll({ offset, limit }: IPaginationFilter) {
     const cursor = await this.transaction('recordings', 'readonly')
       .objectStore('recordings')
+      .index('createdAt')
       .openCursor();
     if (!cursor) {
       return null;
@@ -164,16 +185,22 @@ export default class RecorderDatabase extends Database<{
         }),
       };
     }
+    const sliceDuration = (sampleCount / recording.sampleRate) * 1000;
     const lastOffset = recordingData.offsets[recordingData.offsets.length - 1];
-    const newOffset = lastOffset
-      ? {
-          start: lastOffset.end,
-          end: lastOffset.end + blobPart.byteLength,
-        }
-      : {
-          start: 0,
-          end: blobPart.byteLength,
-        };
+    const newOffset: IRecordingDataOffset =
+      typeof lastOffset === 'undefined'
+        ? {
+            currentDuration: recording.duration,
+            sliceDuration,
+            start: 0,
+            end: blobPart.byteLength,
+          }
+        : {
+            currentDuration: recording.duration,
+            sliceDuration,
+            start: lastOffset.end,
+            end: lastOffset.end + blobPart.byteLength,
+          };
     recordingData = {
       ...recordingData,
       offsets: [...recordingData.offsets, newOffset],
@@ -186,7 +213,7 @@ export default class RecorderDatabase extends Database<{
       'readwrite'
     )
       .objectStore('recordingData')
-      .lazyPut(recordingData);
+      .put(recordingData);
 
     if (recordingDataKey === null) {
       console.log('failed to update recording data: %o', recordingData);
@@ -207,8 +234,7 @@ export default class RecorderDatabase extends Database<{
 
     recording = {
       ...recording,
-      duration:
-        recording.duration + (sampleCount / recording.sampleRate) * 1000,
+      duration: recording.duration + sliceDuration,
       size: recording.size + blobPart.byteLength,
     };
 
@@ -252,6 +278,19 @@ export default class RecorderDatabase extends Database<{
       unique: true,
     });
     recordings.createIndex('createdAt', 'createdAt', {
+      unique: false,
+    });
+    // recordingNotes
+    const recordingNotes = db.createObjectStore('recordingNotes', {
+      keyPath: 'id',
+    });
+    recordingNotes.createIndex('id', 'id', {
+      unique: true,
+    });
+    recordingNotes.createIndex('createdAt', 'createdAt', {
+      unique: false,
+    });
+    recordingNotes.createIndex('recordingId', 'recordingId', {
       unique: false,
     });
   }

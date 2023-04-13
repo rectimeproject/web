@@ -10,6 +10,8 @@ export default function useRecorderDatabase() {
   const debounce = useThrottle(100);
   const [recordings, setRecordings] = useState<RecordingV1[]>([]);
   const [isFinished, setIsFinished] = useState(false);
+  const [hasLoadedInitialRecordings, setHasLoadedInitialRecordings] =
+    useState(false);
   /**
    * get initial recordings
    */
@@ -30,6 +32,7 @@ export default function useRecorderDatabase() {
             setRecordings(newRecordings ? newRecordings : []);
           })
           .finally(() => {
+            setHasLoadedInitialRecordings(true);
             setIsGettingRecordings(false);
           });
       }),
@@ -87,6 +90,18 @@ export default function useRecorderDatabase() {
   const [updatingRecordingIds, setUpdatingRecordingIds] = useState<string[]>(
     []
   );
+  const updateRecordingState = useCallback(
+    (newRecording: RecordingV1) => {
+      setRecordings((recordings) =>
+        recordings.some((r) => r.id === newRecording.id)
+          ? recordings.map((r2) =>
+              r2.id === newRecording.id ? newRecording : r2
+            )
+          : [newRecording, ...recordings]
+      );
+    },
+    [setRecordings]
+  );
   const getRecording = useCallback(
     (id: string) => {
       debounce.run(async () => {
@@ -103,19 +118,7 @@ export default function useRecorderDatabase() {
         }
       });
     },
-    [setRecordings, database, debounce]
-  );
-  const updateRecordingState = useCallback(
-    (newRecording: RecordingV1) => {
-      setRecordings((recordings) =>
-        recordings.some((r) => r.id === newRecording.id)
-          ? recordings.map((r2) =>
-              r2.id === newRecording.id ? newRecording : r2
-            )
-          : [newRecording, ...recordings]
-      );
-    },
-    [setRecordings]
+    [database, updateRecordingState, debounce]
   );
   const updateRecording = useCallback(
     (recording: RecordingV1) => {
@@ -142,7 +145,12 @@ export default function useRecorderDatabase() {
           );
         });
     },
-    [updatingRecordingIds, setUpdatingRecordingIds, database]
+    [
+      updatingRecordingIds,
+      updateRecordingState,
+      setUpdatingRecordingIds,
+      database,
+    ]
   );
   const getRecordingByEncoderId = useCallback(
     (encoderId: string) => {
@@ -158,11 +166,13 @@ export default function useRecorderDatabase() {
   return useMemo(
     () => ({
       getRecordingByEncoderId,
+      hasLoadedInitialRecordings,
       loadingRecordIds,
       updateRecording,
       getRecording,
       recordings,
       isGettingRecordings,
+      isFinished,
       getRecordings,
       getMoreRecordings,
       updatingRecordingIds,
@@ -170,10 +180,12 @@ export default function useRecorderDatabase() {
     [
       updatingRecordingIds,
       updateRecording,
+      hasLoadedInitialRecordings,
       loadingRecordIds,
       getRecordingByEncoderId,
       getRecording,
       recordings,
+      isFinished,
       isGettingRecordings,
       getRecordings,
       getMoreRecordings,

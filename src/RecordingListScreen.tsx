@@ -55,8 +55,27 @@ export default function RecordingListScreen() {
     }
   }, [db, recordings, newRecordingNames]);
   useEffect(() => {
-    db.getRecordings();
-  }, [db.getRecordings]);
+    if (!db.hasLoadedInitialRecordings) db.getRecordings();
+  }, [db]);
+  const onScroll = useCallback(() => {
+    if (!document.scrollingElement) {
+      return;
+    }
+    const pct =
+      window.scrollY /
+      (document.scrollingElement.scrollHeight -
+        document.scrollingElement.clientHeight);
+    if (pct < 0.9) {
+      return;
+    }
+    db.getMoreRecordings();
+  }, [db]);
+  useEffect(() => {
+    window.addEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [onScroll]);
   return (
     <div className="container recording-list-screen">
       <div className="row">
@@ -68,37 +87,44 @@ export default function RecordingListScreen() {
               </div>
             </>
           ) : (
-            recordings.map((r) => (
-              <div className="d-flex recording" key={r.id}>
-                <div className="flex-fill">
-                  <div>
-                    {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
-                      DateTime.DATETIME_SHORT
-                    )} | ${secondsToHumanReadable(r.duration / 1000)}`}
-                  </div>
-                  <div>
-                    <h4>
-                      <input
-                        value={newRecordingNames.get(r.id) ?? r.name}
-                        onChange={r.onChangeNewRecordingName}
-                        style={{
-                          border: 'none',
-                        }}
-                      />
-                    </h4>
-                  </div>
-                </div>
-                <div>
-                  {db.updatingRecordingIds.includes(r.id) ? (
-                    <ActivityIndicator />
-                  ) : (
-                    <div className="play-arrow" onClick={r.onClickPlay}>
-                      <Icon name="headphones" />
+            <>
+              {recordings.map((r) => (
+                <div className="d-flex recording" key={r.id}>
+                  <div className="flex-fill overflow-hidden">
+                    <div>
+                      {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
+                        DateTime.DATETIME_SHORT
+                      )} | ${secondsToHumanReadable(r.duration / 1000)}`}
                     </div>
-                  )}
+                    <div>
+                      <h4>
+                        <input
+                          value={newRecordingNames.get(r.id) ?? r.name}
+                          onChange={r.onChangeNewRecordingName}
+                          style={{
+                            border: 'none',
+                          }}
+                        />
+                      </h4>
+                    </div>
+                  </div>
+                  <div>
+                    {db.updatingRecordingIds.includes(r.id) ? (
+                      <ActivityIndicator />
+                    ) : (
+                      <div className="play-arrow" onClick={r.onClickPlay}>
+                        <Icon name="headphones" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              {db.isFinished ? (
+                <>
+                  <div className="text-center my-4">No more results.</div>
+                </>
+              ) : null}
+            </>
           )}
         </div>
       </div>
