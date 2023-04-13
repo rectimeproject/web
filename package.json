@@ -10,10 +10,20 @@
     "@types/node": "^16.18.23",
     "@types/react": "^18.0.33",
     "@types/react-dom": "^18.0.11",
+    "autobind-decorator": "^2.4.0",
+    "classnames": "^2.3.2",
+    "eventual-js": "0.x",
+    "history": "5.x",
+    "idb-javascript": "0.x",
+    "luxon": "^3.3.0",
+    "opus-codec": "0.x",
+    "opus-codec-worker": "0.x",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
+    "react-router": "6.x",
+    "react-router-dom": "6.x",
+    "sass": "1.x",
+    "standardized-audio-context": "25.x",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -39,5 +49,19 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@babel/core": "7.x",
+    "@babel/plugin-syntax-flow": "7.x",
+    "@babel/plugin-transform-react-jsx": "7.x",
+    "@material-design-icons/font": "0.x",
+    "@popperjs/core": "2.x",
+    "@testing-library/dom": "7.x",
+    "@types/luxon": "3.x",
+    "bootstrap": "5.x",
+    "bootstrap-icons": "1.x",
+    "react-scripts": "5.x",
+    "ts-node": "^10.9.1",
+    "typescript": "5.x"
   }
 }

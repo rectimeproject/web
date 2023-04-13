@@ -1,0 +1,14 @@
+$recording-screen-play-button-size: 3rem !default;
+
+.recording-screen {
+}
+
+.recording-screen-play-button {
+  border-radius: $recording-screen-play-button-size;
+  width: $recording-screen-play-button-size;
+  height: $recording-screen-play-button-size;
+  display: flex;
+  justify-content: center;
+  background-color: $gray-400;
+  align-items: center;
+}
