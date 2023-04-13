@@ -1,14 +1,15 @@
 import { useParams } from 'react-router';
 import useRecorderDatabase from './useRecorderDatabase';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import useRecordingPlayer from './useRecordingPlayer';
 import ActivityIndicator from './ActivityIndicator';
 import { DateTime } from 'luxon';
 import secondsToHumanReadable from './secondsToHumanReadable';
 import AnalyserNodeView from './AnalyserNodeView';
 import Icon from './Icon';
+import { filesize } from 'filesize';
 
-export default function RecordingScreen() {
+export default function RecordingDetailScreen() {
   const recorderDatabase = useRecorderDatabase();
   const recordingPlayer = useRecordingPlayer();
   const { recordingId } = useParams<{ recordingId: string }>();
@@ -27,6 +28,10 @@ export default function RecordingScreen() {
       recordingPlayer.play(recording);
     }
   }, [recording, recordingPlayer]);
+  const humanReadableRecordingSize = useMemo(
+    () => filesize(recording?.size ?? 0).toString(),
+    [recording]
+  );
   if (recording === null) {
     return null;
   }
@@ -34,7 +39,7 @@ export default function RecordingScreen() {
     <>
       <div className="container recording-screen">
         <div className="row">
-          <div className="col-lg-12">
+          <div className="col-md-8 col-xs-12">
             {recorderDatabase.loadingRecordIds.includes(recording.id) ? (
               <ActivityIndicator width={50} />
             ) : (
@@ -58,25 +63,46 @@ export default function RecordingScreen() {
                       />
                     </div>
                   </div>
-                  <div className="flex-fill mx-3">
+                  <div className="flex-fill mx-3 canvas-container">
                     <AnalyserNodeView
+                      visualizationMode={{
+                        type: 'verticalBars',
+                        barWidth: 20,
+                      }}
                       isPlaying={recordingPlayer.playing !== null}
                       analyserNode={recordingPlayer.analyserNode()}
                     />
-                  </div>
-                  <div>
-                    <div>
-                      {DateTime.fromJSDate(recording.createdAt).toLocaleString(
-                        DateTime.DATETIME_SHORT
+                    {recordingPlayer.playing !== null &&
+                      recordingPlayer.playing.cursor !== null && (
+                        <div className="duration">
+                          {secondsToHumanReadable(
+                            recordingPlayer.playing.cursor
+                          )}
+                        </div>
                       )}
-                    </div>
-                    <div>
-                      {secondsToHumanReadable(recording.duration / 1000)}
-                    </div>
                   </div>
                 </div>
               </>
             )}
+          </div>
+          <div className="col-md-4 col-xs-12">
+            <hr />
+            <div>
+              <h4>Information</h4>
+              <div>Size: {humanReadableRecordingSize}</div>
+              <div>Sample rate: {recording.sampleRate}</div>
+              <div>Channels: {recording.channels}</div>
+              <div>Frame size: {recording.frameSize}</div>
+              <div>
+                Created at:{' '}
+                {DateTime.fromJSDate(recording.createdAt).toLocaleString(
+                  DateTime.DATETIME_SHORT
+                )}
+              </div>
+              <div>
+                Duration: {secondsToHumanReadable(recording.duration / 1000)}
+              </div>
+            </div>
           </div>
         </div>
       </div>

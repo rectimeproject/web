@@ -1,152 +1,93 @@
-import {
-  UIEventHandler,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import useInterval from './useInterval';
-import useRecordingPlayer from './useRecordingPlayer';
-import secondsToHumanReadable from './secondsToHumanReadable';
-import useRecordings from './useRecordings';
-import useRecorderContext from './useRecorderContext';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import useRecorderDatabase from './useRecorderDatabase';
-import { CodecId } from 'opus-codec-worker/actions/actions';
-import { Link } from 'react-router-dom';
-import { RecorderStateType } from './Recorder';
-import classNames from 'classnames';
+import { DateTime } from 'luxon';
 import Icon from './Icon';
+import secondsToHumanReadable from './secondsToHumanReadable';
+import { useNavigate } from 'react-router';
+import ActivityIndicator from './ActivityIndicator';
 
 export default function RecordingListScreen() {
-  const recordings = useRecordings();
-  const recorderContext = useRecorderContext();
   const db = useRecorderDatabase();
-  const onStartRecording = useCallback(
-    ({ encoderId }: { encoderId: CodecId }) => {
-      db.getRecordingByEncoderId(encoderId);
+  const navigate = useNavigate();
+  const openSpecificRecordingPage = useCallback(
+    (recordingId: string) => {
+      navigate(`/recording/${recordingId}`);
     },
-    [db]
+    [navigate]
   );
-  useEffect(() => {
-    // if (!db.isGettingRecordings) {
-    //   db.getRecordings();
-    // }
-    recorderContext.recorder.then((recorder) => {
-      if (recorder === null) {
-        return;
-      }
-      recorder.on('startRecording', onStartRecording);
-      const currentState = recorder.currentState();
-      switch (currentState.type) {
-        case RecorderStateType.Recording:
-          db.getRecordingByEncoderId(currentState.encoderId);
-          break;
-      }
-      return recorder;
-    });
-    return () => {
-      recorderContext.recorder.then((recorder) => {
-        if (recorder) {
-          recorder.off('startRecording', onStartRecording);
-        }
-      });
-    };
-  }, [recorderContext, onStartRecording, db]);
-  const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (!recordingListScrollViewRef.current) {
-      return;
-    }
-    const { scrollHeight, clientHeight } = recordingListScrollViewRef.current;
-    if (scrollHeight === clientHeight) {
-      db.getMoreRecordings();
-    }
-  }, [db]);
-  const onScrollRecordingList: UIEventHandler<HTMLDivElement> = (e) => {
-    const pct =
-      (e.currentTarget.scrollTop /
-        (e.currentTarget.scrollHeight - e.currentTarget.clientHeight)) *
-      100;
-    if (pct >= 98) {
-      db.getMoreRecordings();
-    }
-  };
-  const updateCurrentRecording = useCallback(() => {
-    if (recordings.recording !== null) {
-      db.getRecordingByEncoderId(recordings.recording.encoderId);
-    }
-  }, [db, recordings]);
-  const checkRecordingInterval = useInterval(1000);
-  const player = useRecordingPlayer();
-  const recordingList = useMemo(
+  const [newRecordingNames, setNewRecordingNames] = useState(
+    new Map<string, string>()
+  );
+  const recordings = useMemo(
     () =>
       db.recordings.map((r) => ({
-        id: r.id,
-        size: r.size,
-        duration: secondsToHumanReadable(r.duration / 1000),
-        play: () => player.play(r),
-        pause: () => player.pause(),
-        isRecording: recordings.recording?.encoderId === r.encoderId,
+        ...r,
+        originalValue: r,
+        onChangeNewRecordingName: (e: ChangeEvent<HTMLInputElement>) => {
+          const newName = e.target.value;
+          setNewRecordingNames(
+            (newRecordingNames) =>
+              new Map([...newRecordingNames, [r.id, newName]])
+          );
+        },
+        onClickPlay: () => openSpecificRecordingPage(r.id),
       })),
-    [db.recordings, player, recordings]
+    [openSpecificRecordingPage, setNewRecordingNames, db.recordings]
   );
   useEffect(() => {
-    checkRecordingInterval.setCallback(updateCurrentRecording);
-    checkRecordingInterval.start();
-  }, [checkRecordingInterval, updateCurrentRecording]);
+    for (const [id, name] of newRecordingNames) {
+      if (db.updatingRecordingIds.includes(id)) {
+        continue;
+      }
+      const recording = recordings.find((r) => r.id === id);
+      if (!recording) {
+        console.error('failed to update recording: %o', recording);
+        continue;
+      }
+      if (recording.name === name) {
+        continue;
+      }
+      db.updateRecording({
+        ...recording.originalValue,
+        name,
+      });
+    }
+  }, [db, recordings, newRecordingNames]);
+  useEffect(() => {
+    db.getRecordings();
+  }, [db.getRecordings]);
   return (
-    <div className="container">
+    <div className="container recording-list-screen">
       <div className="row">
         <div className="col-lg-12">
-          <button
-            className="btn btn-primary mb-3"
-            disabled={recordings.isStartingToRecord}
-            onClick={
-              recordings.isRecording
-                ? recordings.stopRecording
-                : recordings.startRecording
-            }
-          >
-            {recordings.isStartingToRecord
-              ? 'Starting...'
-              : recordings.isRecording
-              ? 'Stop recording'
-              : 'Start recording'}
-          </button>
-        </div>
-      </div>
-      <div className="row">
-        <div
-          ref={recordingListScrollViewRef}
-          className="col-lg-12"
-          style={{
-            overflow: 'auto',
-            maxHeight: '20rem',
-          }}
-          onScroll={onScrollRecordingList}
-        >
-          {recordingList.map((r) => (
-            <div
-              className={classNames('d-flex recording-item', {
-                'mb-3': r !== recordingList[recordingList.length - 1],
-              })}
-              key={r.id}
-            >
-              <div className="justify-content-center align-items-center d-flex">
-                <Icon name="save" />
+          {recordings.map((r) => (
+            <div className="d-flex recording" key={r.id}>
+              <div className="flex-fill">
+                <div>
+                  {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
+                    DateTime.DATETIME_SHORT
+                  )} | ${secondsToHumanReadable(r.duration / 1000)}`}
+                </div>
+                <div>
+                  <h4>
+                    <input
+                      value={newRecordingNames.get(r.id) ?? r.name}
+                      onChange={r.onChangeNewRecordingName}
+                      style={{
+                        border: 'none',
+                      }}
+                    />
+                  </h4>
+                </div>
               </div>
-              <div className="flex-fill"></div>
               <div>
-                <div>{r.duration}</div>
-                {r.isRecording ? null : (
-                  <div>
-                    <Link to={`/recording/${r.id}`}>
-                      {`#${r.id.split('-')[0]}`}
-                    </Link>
+                {db.updatingRecordingIds.includes(r.id) ? (
+                  <ActivityIndicator />
+                ) : (
+                  <div className="play-arrow" onClick={r.onClickPlay}>
+                    <Icon name="headphones" />
                   </div>
                 )}
-                <div>{r.size} bytes</div>
               </div>
             </div>
           ))}

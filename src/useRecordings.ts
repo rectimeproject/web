@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import useRecorderContext from './useRecorderContext';
 
 export default function useRecordings() {
@@ -7,36 +7,9 @@ export default function useRecordings() {
   const [isStoppingToRecord, setIsStoppingToRecord] = useState(false);
   const [recording, setRecording] = useState<{
     encoderId: string;
-    duration: number;
   } | null>(null);
-  const onEncoded = useCallback(
-    ({ encoderId, duration }: { encoderId: string; duration: number }) => {
-      if (recording?.encoderId !== encoderId) {
-        return;
-      }
-      setRecording((recording) =>
-        recording
-          ? {
-              ...recording,
-              duration: recording.duration + duration,
-            }
-          : recording
-      );
-    },
-    [recording]
-  );
-  useEffect(() => {
-    recorderContext.recorder.then((recorder) => {
-      recorder?.on('encoded', onEncoded);
-    });
-    return () => {
-      recorderContext.recorder.then((recorder) => {
-        recorder?.off('encoded', onEncoded);
-      });
-    };
-  }, [recorderContext, onEncoded]);
   const startRecording = useCallback(() => {
-    if (isStartingToRecord) {
+    if (isStartingToRecord || recording !== null) {
       return;
     }
     setIsStartingToRecord(true);
@@ -53,7 +26,6 @@ export default function useRecordings() {
           encoderId
             ? {
                 encoderId,
-                duration: 0,
               }
             : null
         );
@@ -68,6 +40,7 @@ export default function useRecordings() {
   }, [
     recorderContext,
     setRecording,
+    recording,
     isStartingToRecord,
     setIsStartingToRecord,
   ]);

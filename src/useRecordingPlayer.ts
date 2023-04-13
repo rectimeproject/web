@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RecordingBlobPartV1, RecordingV1 } from './RecorderDatabase';
+import { RecordingV1 } from './RecorderDatabase';
 import {
   createDecoder,
   decodeFloat,
@@ -155,7 +155,7 @@ export default function useRecordingPlayer() {
             if (current.playingState === null) {
               if (
                 current.durationOffset <
-                Math.min(recording.duration / 1000, 10.0)
+                Math.min(recording.duration / 1000, 0.1)
               ) {
                 return true;
               }
@@ -254,70 +254,31 @@ export default function useRecordingPlayer() {
             return scheduleSamples(samples);
           };
 
-          const cursor = await db
-            .transaction('recordingBlobParts', 'readonly', {})
-            .objectStore('recordingBlobParts')
-            .index('createdAt')
-            .openCursor();
+          const recordingData = await db
+            .transaction('recordingData', 'readonly')
+            .objectStore('recordingData')
+            .index('recordingId')
+            .get(recording.id);
 
-          if (cursor === null) {
-            console.error('failed to get cursor to get blob parts');
+          if (recordingData === null) {
+            console.error('failed to get recording data: %s', recording.id);
             return;
           }
 
-          let pending = Promise.resolve(true);
-          const decodingAndScheduling = new Promise<void>((resolve) => {
-            const resolveOnEnd = () =>
-              pending.finally(() => {
-                resolve();
-              });
-            const continueOrResolveOnFailure = () => {
-              try {
-                cursor.result?.continue();
-              } catch (reason) {
-                console.error(
-                  "failed to call cursor's `continue` method. finishing decoding: %o",
-                  reason
-                );
-                resolveOnEnd();
-                return false;
+          const decodingAndScheduling = (async () => {
+            for (const { start, end } of recordingData.offsets) {
+              if (
+                !(await decodeAndScheduleBlobPart(
+                  recordingData.data.slice(start, end)
+                ))
+              ) {
+                break;
               }
-              return true;
-            };
-            cursor.onsuccess = () => {
-              if (!cursor.result) {
-                resolveOnEnd();
-                return;
+              if (!maybePlaySchedule()) {
+                break;
               }
-              const recordingBlobPart: RecordingBlobPartV1 =
-                cursor.result.value;
-              if (recordingBlobPart.recordingId !== recording.id) {
-                continueOrResolveOnFailure();
-                return;
-              }
-              const blob = recordingBlobPart.blob.slice(0);
-              if (!continueOrResolveOnFailure()) {
-                return;
-              }
-              pending = Promise.resolve(pending)
-                .then(async (previousResult) => {
-                  if (
-                    !previousResult ||
-                    !(await decodeAndScheduleBlobPart(blob))
-                  ) {
-                    return false;
-                  }
-                  return true;
-                })
-                .catch((reason) => {
-                  console.error(
-                    'failed to add process decoded blob part with error: %o',
-                    reason
-                  );
-                  return false;
-                });
-            };
-          });
+            }
+          })();
 
           /**
            * start decoding blob parts and to play accordingly

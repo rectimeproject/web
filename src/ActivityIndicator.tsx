@@ -5,11 +5,11 @@ export default function ActivityIndicator(
     <svg
       xmlns="http://www.w3.org/2000/svg"
       style={{ margin: 'auto', background: 'none' }}
-      width="200"
-      height="200"
+      // width="200"
+      // height="200"
+      viewBox="0 0 100 100"
       display="block"
       preserveAspectRatio="xMidYMid"
-      viewBox="0 0 100 100"
       {...svgProps}
     >
       <rect width="3" height="12" x="48.5" y="24" fill="#0a0a0a" rx="0" ry="0">

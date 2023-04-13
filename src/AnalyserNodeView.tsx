@@ -4,15 +4,27 @@ import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
 export default function AnalyserNodeView({
   isPlaying,
   analyserNode,
+  canvasWidth,
+  canvasHeight,
+  visualizationMode,
 }: {
   analyserNode: AnalyserNode<IAudioContext> | null;
   isPlaying: boolean;
+  canvasHeight?: number | string;
+  canvasWidth?: number | string;
+  visualizationMode?: {
+    barWidth: number;
+    type: 'verticalBars';
+  };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameIdRef = useRef<number | null>(null);
 
   const renderingDataRef = useRef<{
     analyserNode: AnalyserNode<IAudioContext>;
     data: Uint8Array;
+    width: number;
+    height: number;
   } | null>(null);
   const draw = useCallback(() => {
     const current = canvasRef.current;
@@ -28,52 +40,78 @@ export default function AnalyserNodeView({
     /**
      * redraw
      */
-    requestAnimationFrame(draw);
+    frameIdRef.current = requestAnimationFrame(draw);
 
     const { analyserNode, data } = renderingData;
 
-    analyserNode.getByteTimeDomainData(data);
-
-    let x = 0;
-    const sliceWidth = current.width / data.length;
-
     ctx.clearRect(0, 0, current.width, current.height);
 
-    for (const v of data) {
-      const y = v - current.height;
-      ctx.fillStyle = `rgb(0,0,${v % 255})`;
-      ctx.fillRect(x, y, sliceWidth, current.height / 2);
-      x += sliceWidth;
+    switch (visualizationMode?.type) {
+      default: {
+        analyserNode.getByteTimeDomainData(data);
+
+        let x = 0;
+        const sliceWidth = current.width / data.length;
+
+        for (const v of data) {
+          const y = v / 128.0 - current.height;
+          ctx.fillStyle = `rgb(0,0,${v % 255})`;
+          ctx.fillRect(x, y, sliceWidth, current.height / 2);
+          x += sliceWidth;
+        }
+        break;
+      }
+      case 'verticalBars': {
+        analyserNode.getByteFrequencyData(data);
+
+        const sliceWidth = current.width / 32;
+        let x = 0;
+        for (const barHeight of data) {
+          ctx.fillStyle = `rgb(${barHeight % 255},${barHeight % 255},${
+            barHeight % 255
+          })`;
+
+          ctx.fillRect(x, current.height, sliceWidth, -barHeight);
+          x += sliceWidth + 1;
+        }
+        break;
+      }
     }
-  }, [canvasRef, isPlaying]);
+  }, [canvasRef, visualizationMode, isPlaying, frameIdRef]);
   const clearRenderingDataRef = useCallback(() => {
     renderingDataRef.current = null;
   }, [renderingDataRef]);
 
   useEffect(() => {
-    if (analyserNode !== null && isPlaying) {
+    const canvas = canvasRef.current;
+
+    if (analyserNode !== null && isPlaying && canvas !== null) {
       if (renderingDataRef.current === null) {
-        analyserNode.fftSize = 2 ** 13;
+        analyserNode.fftSize = 2 ** 10;
+        analyserNode.minDecibels = -90;
+        analyserNode.maxDecibels = -10;
+        analyserNode.smoothingTimeConstant = 0.5;
         renderingDataRef.current = {
+          width: canvas.width,
+          height: canvas.height,
           data: new Uint8Array(analyserNode.frequencyBinCount),
           analyserNode,
         };
+        // canvas.width = renderingDataRef.current.width * window.devicePixelRatio;
+        // canvas.height =
+        //   renderingDataRef.current.height * window.devicePixelRatio;
+
         draw();
       }
     } else {
       clearRenderingDataRef();
     }
     return () => {
+      if (frameIdRef.current !== null) {
+        cancelAnimationFrame(frameIdRef.current);
+      }
       clearRenderingDataRef();
     };
   }, [draw, analyserNode, clearRenderingDataRef, isPlaying]);
-  return (
-    <canvas
-      style={{
-        width: '100%',
-      }}
-      height={100}
-      ref={canvasRef}
-    />
-  );
+  return <canvas width={canvasWidth} height={canvasHeight} ref={canvasRef} />;
 }

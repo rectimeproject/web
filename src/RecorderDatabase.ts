@@ -1,16 +1,22 @@
 import { CodecId } from 'opus-codec-worker/actions/actions';
 import { Database } from 'idb-javascript';
 import { boundMethod } from 'autobind-decorator';
+import DatabaseThreadDummy from 'idb-javascript/src/DatabaseThreadDummy';
 
-export type RecordingBlobPartV1 = {
-  id: number;
+export type RecordingDataV1 = {
+  id: string;
   recordingId: string;
-  sampleCount: number;
   createdAt: Date;
-  blob: Blob;
+  data: Blob;
+  offsets: {
+    start: number;
+    end: number;
+  }[];
+  version: 1;
 };
 
 export type RecordingV1 = {
+  name: string;
   sampleRate: number;
   channels: number;
   id: string;
@@ -32,10 +38,13 @@ export interface IPaginationFilter {
 
 export default class RecorderDatabase extends Database<{
   recordings: RecordingV1;
-  recordingBlobParts: RecordingBlobPartV1;
+  recordingData: RecordingDataV1;
 }> {
+  // readonly #encodingQueue = new Map<string, IBlobPartQueue>();
   public constructor(databaseName: string) {
-    super(databaseName, 1);
+    super(databaseName, 1, {
+      thread: new DatabaseThreadDummy(),
+    });
   }
   public async getAll({ offset, limit }: IPaginationFilter) {
     const cursor = await this.transaction('recordings', 'readonly')
@@ -103,6 +112,7 @@ export default class RecorderDatabase extends Database<{
       frameSize,
       size: 0,
       version: 1,
+      name: 'Untitled',
       encoderId,
       createdAt: new Date(),
       id: crypto.getRandomValues(new Uint32Array(4)).join('-'),
@@ -116,71 +126,85 @@ export default class RecorderDatabase extends Database<{
     (await this.result())?.close();
   }
   public async addBlobPart({
-    recordingId,
+    encoderId,
     blobPart,
     sampleCount,
   }: {
-    /**
-     * recording id
-     */
-    recordingId: string;
-    /**
-     * blob part encoded using OPUS codec
-     */
+    encoderId: string;
     blobPart: ArrayBuffer;
-    /**
-     * how many samples were used to produce this encoded blob part
-     */
     sampleCount: number;
   }) {
-    const blobPartId = crypto.getRandomValues(new Uint32Array(1))[0];
-    if (typeof blobPartId === 'undefined') {
-      return null;
-    }
-
-    const blobPartKey = await this.transaction(
-      'recordingBlobParts',
-      'readwrite',
-      {}
-    )
-      .objectStore('recordingBlobParts')
-      .put({
-        id: blobPartId,
-        createdAt: new Date(),
-        recordingId,
-        sampleCount,
-        blob: new Blob([blobPart], {
-          type: 'application/octet-stream',
-        }),
-      });
-
-    // console.log(
-    //   'received %d samples (total duration = %d): %d ms',
-    //   sampleCount,
-    //   recording.duration,
-    //   (sampleCount / recording.sampleRate) * 1000
-    // );
-
     let recording = await this.transaction('recordings', 'readonly')
       .objectStore('recordings')
-      .index('id')
-      .get(recordingId);
+      .index('encoderId')
+      .get(encoderId);
 
     if (recording === null) {
-      console.error('failed to get recording by recording id: %s', recordingId);
-      if (
-        (await this.transaction('recordingBlobParts', 'readwrite')
-          .objectStore('recordingBlobParts')
-          .delete(blobPartId)) === null
-      ) {
-        console.error('failed to delete blob part after failure');
-      }
-      return null;
+      console.error('failed to get recording: %s', encoderId);
+      return false;
     }
 
-    /**
-     * update recording object
-     */
+    let recordingData = await this.transaction('recordingData', 'readonly')
+      .objectStore('recordingData')
+      .index('recordingId')
+      .get(recording.id);
+    if (!recordingData) {
+      const recordingDataId = crypto
+        .getRandomValues(new Uint32Array(4))
+        .join('-');
+
+      recordingData = {
+        version: 1,
+        recordingId: recording.id,
+        id: recordingDataId,
+        createdAt: new Date(),
+        offsets: [],
+        data: new Blob([], {
+          type: 'application/octet-stream',
+        }),
+      };
+    }
+    const lastOffset = recordingData.offsets[recordingData.offsets.length - 1];
+    const newOffset = lastOffset
+      ? {
+          start: lastOffset.end,
+          end: lastOffset.end + blobPart.byteLength,
+        }
+      : {
+          start: 0,
+          end: blobPart.byteLength,
+        };
+    recordingData = {
+      ...recordingData,
+      offsets: [...recordingData.offsets, newOffset],
+      data: new Blob([recordingData.data, blobPart], {
+        type: 'application/octet-stream',
+      }),
+    };
+    const recordingDataKey = await this.transaction(
+      'recordingData',
+      'readwrite'
+    )
+      .objectStore('recordingData')
+      .lazyPut(recordingData);
+
+    if (recordingDataKey === null) {
+      console.log('failed to update recording data: %o', recordingData);
+      return false;
+    }
+
+    recording = await this.transaction('recordings', 'readonly')
+      .objectStore('recordings')
+      .get(recording.id);
+
+    if (recording === null) {
+      console.error(
+        'failed to get recording after updating recording data: %o',
+        recordingData
+      );
+      return false;
+    }
+
     recording = {
       ...recording,
       duration:
@@ -192,39 +216,18 @@ export default class RecorderDatabase extends Database<{
       .objectStore('recordings')
       .put(recording);
 
-    if (recordingKey === null || blobPartKey === null) {
-      // TODO: maybe we should not delete everything after failure, or should we?
-      // if(blobPartKey !== null){
-      //   if(await this.transaction('recordingBlobParts','readwrite',{}).objectStore('recordingBlobParts').delete(
-      //     blobPartKey
-      //   ) === null){
-      //     console.error('failed to delete blob part after failure');
-      //   }
-      // }
-      // if(recordingKey !== null){
-      //   if(await this.transaction('recordings','readwrite',{}).objectStore('recordings').delete(
-      //     recordingKey
-      //   ) === null){
-      //     console.error('failed to delete recording record after failure');
-      //   }
-      // }
-      console.error('failed to update recording or recording blob part: %o', {
-        blobPartKey,
-        recordingKey,
-      });
-      return null;
+    if (recordingKey === null) {
+      console.error('failed to update recording: %o', recording);
+      return false;
     }
-    return {
-      blobPartKey,
-      recordingKey,
-    };
+    return true;
   }
   @boundMethod protected override onUpgradeNeeded(
     _: IDBVersionChangeEvent
   ): void {
     const db = this.request().result;
     // recordingBlobParts
-    const recordingBlobParts = db.createObjectStore('recordingBlobParts', {
+    const recordingBlobParts = db.createObjectStore('recordingData', {
       keyPath: 'id',
       autoIncrement: true,
     });
@@ -232,9 +235,6 @@ export default class RecorderDatabase extends Database<{
       unique: true,
     });
     recordingBlobParts.createIndex('recordingId', 'recordingId', {
-      unique: false,
-    });
-    recordingBlobParts.createIndex('sampleCount', 'sampleCount', {
       unique: false,
     });
     recordingBlobParts.createIndex('createdAt', 'createdAt', {

@@ -10,7 +10,8 @@ import RecorderWithDatabase from './RecorderWithDatabase';
 import RecorderDatabase from './RecorderDatabase';
 import RecorderDatabaseContext from './RecorderDatabaseContext';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import RecordingScreen from './RecordingScreen';
+import RecordingDetailScreen from './RecordingDetailScreen';
+import RecordScreen from './RecordScreen';
 import RecordingListScreen from './RecordingListScreen';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,8 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <Route path="/">
                   <Route
                     path="recording/:recordingId"
-                    Component={RecordingScreen}
+                    Component={RecordingDetailScreen}
                   />
+                  <Route index Component={RecordScreen} />
                   <Route path="recordings" Component={RecordingListScreen} />
                 </Route>
               </Routes>

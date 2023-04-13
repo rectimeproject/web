@@ -1,8 +1,8 @@
 import Client from 'opus-codec-worker/actions/Client';
 import {
   CodecId,
-  IEncodeFloatResult,
-  RequestResponse,
+  // IEncodeFloatResult,
+  // RequestResponse,
   createEncoder,
   encodeFloat,
   getFromEncoder,
@@ -83,6 +83,7 @@ export default class Recorder extends EventEmitter<{
     channels: number;
   };
   encoded: {
+    size: number;
     sampleCount: number;
     encoderId: CodecId;
     buffer: ArrayBuffer;
@@ -94,7 +95,9 @@ export default class Recorder extends EventEmitter<{
   readonly #opusCompliantDurations = [60, 40, 20, 10, 5, 2.5];
   #currentState: RecorderState;
   public constructor(audioContext: IAudioContext, opus: Opus) {
-    super();
+    super({
+      maxListenerWaitTime: 10000,
+    });
     this.#opus = opus;
     this.#audioContext = audioContext;
     this.#currentState = {
@@ -110,6 +113,7 @@ export default class Recorder extends EventEmitter<{
       case RecorderStateType.Recording:
       case RecorderStateType.StartingToRecord:
         await this.#setStateToIdle();
+        console.log('state set back to idle');
         return state.encoderId;
     }
     return null;
@@ -124,6 +128,13 @@ export default class Recorder extends EventEmitter<{
     frameSize: number;
     maxDataBytes: number;
   }> = {}): Promise<string | null> {
+    if (this.#currentState.type !== RecorderStateType.Idle) {
+      console.error(
+        'start() called, but recorder was in invalid state: %o',
+        this.#currentState
+      );
+      return null;
+    }
     const supportedFrameSizes = this.#opusCompliantDurations.map(
       (duration) => ({
         frameSize: (duration * this.#audioContext.sampleRate) / 1000,
@@ -156,13 +167,6 @@ export default class Recorder extends EventEmitter<{
      * static frame size
      */
     const frameSize = maybeFrameSize;
-    if (this.#currentState.type !== RecorderStateType.Idle) {
-      console.error(
-        'start() called, but recorder was in invalid state: %o',
-        this.#currentState
-      );
-      return null;
-    }
     const startingToRecord: IStartingToRecordRecorderState = {
       type: RecorderStateType.StartingToRecord,
     };
@@ -201,6 +205,10 @@ export default class Recorder extends EventEmitter<{
       await this.#setStateToIdle();
       return null;
     }
+    /**
+     * set encoder id
+     */
+    startingToRecord.encoderId = encoderId.value;
     console.log('successfully created encoder: %s', encoderId.value);
     const setBitRateResult = await this.#opus.client.sendMessage(
       setToEncoder(OPUS_SET_BITRATE(encoderId.value, 32000))
@@ -319,6 +327,7 @@ export default class Recorder extends EventEmitter<{
               return;
             }
             this.emit('encoded', {
+              size: result.value.encoded.buffer.byteLength,
               sampleCount: pcm.length,
               duration: result.value.encoded.duration,
               buffer: result.value.encoded.buffer,
@@ -361,30 +370,39 @@ export default class Recorder extends EventEmitter<{
       currentState.audioWorkletNode.port.postMessage({
         stop: true,
       });
-      currentState.audioWorkletNode.disconnect(this.#audioContext.destination);
-    }
-    if (currentState.encoderId) {
-      let result: RequestResponse<IEncodeFloatResult>;
-      do {
-        result = await this.#opus.client.sendMessage(
-          encodeFloat({
-            input: null,
-            maxDataBytes: 500,
-            encoderId: currentState.encoderId,
-          })
+      try {
+        currentState.audioWorkletNode.disconnect(
+          this.#audioContext.destination
         );
-        if (!('failures' in result)) {
-          console.log(
-            'got encoded data that was queued in the ring buffer: %o',
-            result.value.encoded
-          );
-        }
-      } while (!('failures' in result) && result.value.encoded !== null);
+      } catch (reason) {
+        console.error(
+          'failed to disconnect audio worklet with error: %o',
+          reason
+        );
+      }
     }
     /**
      * wait for all events to be delivered
      */
     await this.wait(['encoded', 'startRecording']);
+    // if (currentState.encoderId) {
+    //   let result: RequestResponse<IEncodeFloatResult>;
+    //   do {
+    //     result = await this.#opus.client.sendMessage(
+    //       encodeFloat({
+    //         input: null,
+    //         maxDataBytes: 500,
+    //         encoderId: currentState.encoderId,
+    //       })
+    //     );
+    //     if (!('failures' in result)) {
+    //       console.log(
+    //         'got encoded data that was queued in the ring buffer: %o',
+    //         result.value.encoded
+    //       );
+    //     }
+    //   } while (!('failures' in result) && result.value.encoded !== null);
+    // }
     this.#currentState = {
       type: RecorderStateType.Idle,
     };

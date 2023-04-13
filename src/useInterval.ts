@@ -20,7 +20,7 @@ export default function useInterval(ms: number) {
     shouldContinue.current = false;
   }, [shouldContinue, timeoutId]);
 
-  const start = useCallback(() => {
+  const repeatLoop = useCallback(() => {
     if (timeoutId.current !== null || !shouldContinue.current) {
       return;
     }
@@ -33,9 +33,14 @@ export default function useInterval(ms: number) {
         }
       }
       timeoutId.current = null;
-      start();
+      repeatLoop();
     }, ms);
   }, [shouldContinue, ms, timeoutId]);
+
+  const start = useCallback(() => {
+    shouldContinue.current = true;
+    repeatLoop();
+  }, [repeatLoop]);
 
   useEffect(() => {
     shouldContinue.current = true;

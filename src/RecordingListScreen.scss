@@ -1,0 +1,19 @@
+.recording-list-screen {
+  .play-arrow {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 3rem;
+    background-color: $primary;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    span {
+      color: $white;
+    }
+  }
+
+  .recording {
+    margin-bottom: $spacer;
+  }
+}

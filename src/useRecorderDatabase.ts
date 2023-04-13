@@ -84,6 +84,9 @@ export default function useRecorderDatabase() {
     setPaginationFilter,
   ]);
   const [loadingRecordIds, setLoadingRecordIds] = useState<string[]>([]);
+  const [updatingRecordingIds, setUpdatingRecordingIds] = useState<string[]>(
+    []
+  );
   const getRecording = useCallback(
     (id: string) => {
       debounce.run(async () => {
@@ -94,17 +97,52 @@ export default function useRecorderDatabase() {
           if (!newRecording) {
             return;
           }
-          setRecordings((recordings) =>
-            recordings.some((r) => r.id === id)
-              ? recordings.map((r2) => (r2.id === id ? newRecording : r2))
-              : [newRecording, ...recordings]
-          );
+          updateRecordingState(newRecording);
         } finally {
           setLoadingRecordIds((ids) => ids.filter((id2) => id2 !== id));
         }
       });
     },
     [setRecordings, database, debounce]
+  );
+  const updateRecordingState = useCallback(
+    (newRecording: RecordingV1) => {
+      setRecordings((recordings) =>
+        recordings.some((r) => r.id === newRecording.id)
+          ? recordings.map((r2) =>
+              r2.id === newRecording.id ? newRecording : r2
+            )
+          : [newRecording, ...recordings]
+      );
+    },
+    [setRecordings]
+  );
+  const updateRecording = useCallback(
+    (recording: RecordingV1) => {
+      if (updatingRecordingIds.includes(recording.id)) {
+        return;
+      }
+      setUpdatingRecordingIds((ids) => [...ids, recording.id]);
+      database
+        .transaction('recordings', 'readwrite')
+        .objectStore('recordings')
+        .put(recording)
+        .then(async () => {
+          const newRecording = await database
+            .transaction('recordings', 'readonly')
+            .objectStore('recordings')
+            .get(recording.id);
+          if (newRecording !== null) {
+            updateRecordingState(newRecording);
+          }
+        })
+        .finally(() => {
+          setUpdatingRecordingIds((ids) =>
+            ids.filter((id) => id !== recording.id)
+          );
+        });
+    },
+    [updatingRecordingIds, setUpdatingRecordingIds, database]
   );
   const getRecordingByEncoderId = useCallback(
     (encoderId: string) => {
@@ -121,13 +159,17 @@ export default function useRecorderDatabase() {
     () => ({
       getRecordingByEncoderId,
       loadingRecordIds,
+      updateRecording,
       getRecording,
       recordings,
       isGettingRecordings,
       getRecordings,
       getMoreRecordings,
+      updatingRecordingIds,
     }),
     [
+      updatingRecordingIds,
+      updateRecording,
       loadingRecordIds,
       getRecordingByEncoderId,
       getRecording,

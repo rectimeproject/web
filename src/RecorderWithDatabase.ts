@@ -29,20 +29,14 @@ export default class RecorderWithDatabase extends Recorder {
     sampleCount: number;
     buffer: ArrayBuffer;
   }) {
-    const recording = await this.#database.getFromEncoderId(encoderId);
-
-    if (!recording) {
-      console.error('failed to get recording from encoder id: %s', encoderId);
-      return;
-    }
-    const newRecordingState = await this.#database.addBlobPart({
-      recordingId: recording.id,
-      sampleCount,
-      blobPart: buffer,
-    });
-
-    if (newRecordingState === null) {
-      console.error('failed to add blob part. addBlobPart() returned null: %o');
+    if (
+      !(await this.#database.addBlobPart({
+        encoderId,
+        sampleCount,
+        blobPart: buffer,
+      }))
+    ) {
+      console.error('failed to add blob part');
     }
   }
   @boundMethod private async onStartRecording(data: {

@@ -4579,6 +4579,11 @@ filelist@^1.0.1:
   dependencies:
     minimatch "^5.0.1"
 
+filesize@^10.0.7:
+  version "10.0.7"
+  resolved "https://registry.yarnpkg.com/filesize/-/filesize-10.0.7.tgz#2237a816ee60a83fd0c3382ae70800e54eced3ad"
+  integrity sha512-iMRG7Qo9nayLoU3PNCiLizYtsy4W1ClrapeCwEgtiQelOAOuRJiw4QaLI+sSr8xr901dgHv+EYP2bCusGZgoiA==
+
 filesize@^8.0.6:
   version "8.0.7"
   resolved "https://registry.yarnpkg.com/filesize/-/filesize-8.0.7.tgz#695e70d80f4e47012c132d57a059e80c6b580bd8"
@@ -5141,9 +5146,9 @@ icss-utils@^5.0.0, icss-utils@^5.1.0:
   integrity sha512-soFhflCVWLfRNOPU3iv5Z9VUdT44xFRbzjLsEzSr5AQmgqPMTHdU3PMT1Cf1ssx8fLNJDA1juftYl+PUcv3MqA==
 
 idb-javascript@0.x:
-  version "0.0.19"
-  resolved "https://registry.yarnpkg.com/idb-javascript/-/idb-javascript-0.0.19.tgz#877966a5f94b51718b5a5c67cdb0539f9d77fdc2"
-  integrity sha512-G8Mi+F4mMjRJL07pzG9cr3JIlhiIVRM4SmPKgk3+YlEaiNQdSCK3geSgCG7Zo/UwT09WODsMYORRsiYRaBG4Qg==
+  version "0.0.29"
+  resolved "https://registry.yarnpkg.com/idb-javascript/-/idb-javascript-0.0.29.tgz#0345f494e2a5625402af29f3923feb7007600f28"
+  integrity sha512-ZMNuN1EsIyAi+6CkUT2yjGhPytZ+JxPUWlRXGMESUdQfgm1SK23/Dhk3jSDhhannvoioWArdg4N9sL1ouZmSZA==
 
 idb@^7.0.1:
   version "7.1.1"
@@ -9071,6 +9076,11 @@ utila@~0.4:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/utila/-/utila-0.4.0.tgz#8a16a05d445657a3aea5eecc5b12a4fa5379772c"
   integrity sha512-Z0DbgELS9/L/75wZbro8xAnT50pBVFQZ+hUEueGDU5FN51YSCYM+jdxsfCiHjwNP/4LCDD0i/graKpeBnOXKRA==
+
+utility-types@3.x:
+  version "3.10.0"
+  resolved "https://registry.yarnpkg.com/utility-types/-/utility-types-3.10.0.tgz#ea4148f9a741015f05ed74fd615e1d20e6bed82b"
+  integrity sha512-O11mqxmi7wMKCo6HKFt5AhO4BwY3VV68YU07tgxfz8zJTIxr4BpsezN49Ffwy9j3ZpwwJp4fkRwjRzq3uWE6Rg==
 
 utils-merge@1.0.1:
   version "1.0.1"
