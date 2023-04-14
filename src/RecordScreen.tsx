@@ -25,6 +25,7 @@ import ActivityIndicator from './ActivityIndicator';
 import useMediaDevices from './useMediaDevices';
 import useAppSettings from './useAppSettings';
 import useDebounce from './useDebounce';
+import useRecordingNotes from './useRecordingNotes';
 
 export default function RecordingListScreen() {
   const recordings = useRecordings();
@@ -178,14 +179,6 @@ export default function RecordingListScreen() {
     },
     [mediaDevices.devices, setDeviceId, appSettings, recordings]
   );
-  // const { setMicrophone } = recordings;
-  // useEffect(() => {
-  //   const device = mediaDevices.devices.find((d) => d.deviceId === deviceId);
-  //   if (device) {
-  //     appSettings.setPreferredDevice(device);
-  //     setMicrophone(device);
-  //   }
-  // }, [deviceId, appSettings, setMicrophone, mediaDevices.devices]);
   useEffect(() => {
     checkRecordingInterval.setCallback(updateCurrentRecording);
   }, [checkRecordingInterval, updateCurrentRecording]);
@@ -217,6 +210,13 @@ export default function RecordingListScreen() {
       mediaDevices.enumerateDevices();
     }
   }, [mediaDevices]);
+  const recordingNotes = useRecordingNotes();
+  const createRecordingNote = useCallback(() => {
+    if (recording) {
+      console.log(recording.duration);
+      recordingNotes.createRecordingNote(recording.id, recording.duration);
+    }
+  }, [recordingNotes, recording]);
   return (
     <div className="recording-list-screen">
       <div className="container">
@@ -265,6 +265,11 @@ export default function RecordingListScreen() {
                 <div className="button" onClick={goToRecordingListScreen}>
                   <Icon name="list" />
                 </div>
+                {recordings.recording !== null && (
+                  <div className="button" onClick={createRecordingNote}>
+                    <Icon name="add" />
+                  </div>
+                )}
               </div>
             </div>
           </div>

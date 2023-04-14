@@ -50,7 +50,7 @@ export interface IRecordingNote {
   recordingId: string;
   id: string;
   createdAt: Date;
-  duration: number;
+  durationOffset: number;
   contents: string;
   title: string;
 }
