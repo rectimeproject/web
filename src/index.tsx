@@ -1,4 +1,5 @@
 import './index.scss';
+import webrtcAdapter from 'webrtc-adapter';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
@@ -15,6 +16,8 @@ import RecordScreen from './RecordScreen';
 import RecordingListScreen from './RecordingListScreen';
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('webrtc adapter: %o', webrtcAdapter);
+
   const el = document.getElementById('root');
   if (!el) {
     console.error('failed to find root element');

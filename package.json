@@ -25,7 +25,8 @@
     "react-router-dom": "6.x",
     "sass": "1.x",
     "standardized-audio-context": "25.x",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "webrtc-adapter": "8.x"
   },
   "scripts": {
     "start": "react-scripts start",
