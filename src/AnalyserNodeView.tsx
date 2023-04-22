@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
 
+interface IRenderingData {
+  analyserNode: AnalyserNode<IAudioContext>;
+  data: Uint8Array;
+  x: number;
+  frameId: number;
+  lastTime: number | null;
+}
+
 export default function AnalyserNodeView({
   isPlaying,
   analyserNode,
@@ -24,17 +32,22 @@ export default function AnalyserNodeView({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const renderingDataRef = useRef<{
-    analyserNode: AnalyserNode<IAudioContext>;
-    data: Uint8Array;
-    x: number;
-    frameId: number;
-  } | null>(null);
-  const draw = useCallback(
-    (_: number) => {
+  const renderingDataRef = useRef<IRenderingData | null>(null);
+  const draw = useCallback<FrameRequestCallback>(
+    (now) => {
       const current = canvasRef.current;
       const renderingData = renderingDataRef.current;
       if (renderingData === null || current === null || isPlaying === null) {
+        return;
+      }
+      const drawImmediately = () => {
+        if (renderingDataRef.current) {
+          renderingDataRef.current.frameId = requestAnimationFrame(draw);
+        }
+      };
+      if (renderingData.lastTime === null) {
+        renderingData.lastTime = now;
+        drawImmediately();
         return;
       }
       switch (visualizationMode?.type) {
@@ -55,7 +68,7 @@ export default function AnalyserNodeView({
           /**
            * redraw
            */
-          renderingData.frameId = requestAnimationFrame(draw);
+          drawImmediately();
 
           const { analyserNode, data } = renderingData;
 
@@ -78,7 +91,8 @@ export default function AnalyserNodeView({
             );
             x += sliceWidth;
           }
-          // renderingData.x = x;
+          // renderingData.x -= 1 * (now - renderingData.lastTime);
+          console.log(1 * (now - renderingData.lastTime));
           break;
         }
       }
@@ -107,6 +121,7 @@ export default function AnalyserNodeView({
         analyserNode.maxDecibels = -10;
         // analyserNode.smoothingTimeConstant = 0.5;
         renderingDataRef.current = {
+          lastTime: null,
           x: 0,
           data: new Uint8Array(analyserNode.frequencyBinCount),
           analyserNode,

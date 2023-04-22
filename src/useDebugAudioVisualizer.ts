@@ -80,7 +80,22 @@ export default function useDebugAudioVisualizer() {
         const streamAudioSourceNode =
           recorder.audioContext.createMediaStreamSource(stream);
         const analyserNode = recorder.audioContext.createAnalyser();
-        streamAudioSourceNode.connect(analyserNode);
+        try {
+          streamAudioSourceNode.connect(analyserNode);
+        } catch (reason) {
+          console.error(
+            'failed to connect stream audio source node with analyser node with error: %o',
+            reason
+          );
+          for (const t of stream.getTracks()) {
+            try {
+              t.stop();
+            } catch (reason) {
+              console.error('failed to stop track with error: %o', reason);
+            }
+          }
+          return null;
+        }
         return {
           stream,
           analyserNode,
@@ -91,6 +106,14 @@ export default function useDebugAudioVisualizer() {
         if (rec) setAnalyserNode(rec.analyserNode);
         setDebuggingState('debugging');
         return rec;
+      })
+      .catch((reason) => {
+        setAnalyserNode(null);
+        console.error(
+          'failed to start debug audio visualizer data with error: %o',
+          reason
+        );
+        return null;
       });
     dataRef.current = pendingData;
   }, [recorder.audioContext, debuggingState]);
