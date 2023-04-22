@@ -26,6 +26,7 @@ import useMediaDevices from './useMediaDevices';
 import useAppSettings from './useAppSettings';
 import useDebounce from './useDebounce';
 import useRecordingNotes from './useRecordingNotes';
+import useDebugAudioVisualizer from './useDebugAudioVisualizer';
 
 export default function RecordingListScreen() {
   const recordings = useRecordings();
@@ -37,6 +38,7 @@ export default function RecordingListScreen() {
     },
     [db]
   );
+  const debugAudioVisualizer = useDebugAudioVisualizer();
   const mediaDevices = useMediaDevices();
   const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
   const updateCurrentRecording = useCallback(() => {
@@ -89,15 +91,16 @@ export default function RecordingListScreen() {
       recorderContext.recorder.then((rec) => rec?.stop());
     };
   }, [recorderContext]);
+  const { getMoreRecordings } = db;
   useLayoutEffect(() => {
     if (!recordingListScrollViewRef.current) {
       return;
     }
     const { scrollHeight, clientHeight } = recordingListScrollViewRef.current;
     if (scrollHeight === clientHeight) {
-      db.getMoreRecordings();
+      getMoreRecordings();
     }
-  }, [db.getMoreRecordings]);
+  }, [getMoreRecordings]);
   /**
    * update current recording in case recording is happening
    */
@@ -228,12 +231,17 @@ export default function RecordingListScreen() {
                   <AnalyserNodeView
                     canvasWidth="100%"
                     visualizationMode={visualizationMode}
-                    isPlaying={recording !== null}
-                    analyserNode={analyserNodeRef.current}
+                    // isPlaying={recording !== null}
+                    isPlaying
+                    analyserNode={
+                      recording === null
+                        ? debugAudioVisualizer.analyserNode
+                        : analyserNodeRef.current
+                    }
                   />
                 </div>
               </div>
-              <div className="d-flex">
+              <div className="d-flex align-items-center">
                 <div className="flex-fill d-flex align-items-center justify-content-end">
                   {secondsToHumanReadable(
                     recording !== null ? recording.duration / 1000 : 0
@@ -259,9 +267,43 @@ export default function RecordingListScreen() {
                 <div className="flex-fill d-flex align-items-center justify-content-start">
                   {filesize(recordingSizeOrQuota).toString()}
                 </div>
+                <div className="button" onClick={goToRecordingListScreen}>
+                  <Icon name="list" />
+                </div>
+                {process.env['NODE_ENV'] === 'development' && (
+                  <div
+                    className="button"
+                    onClick={
+                      debugAudioVisualizer.isDebugging
+                        ? debugAudioVisualizer.stop
+                        : debugAudioVisualizer.start
+                    }
+                  >
+                    <Icon
+                      name={
+                        debugAudioVisualizer.isDebugging
+                          ? 'close'
+                          : 'remove_red_eye'
+                      }
+                    />
+                  </div>
+                )}
+                {recordings.recording !== null && (
+                  <div className="button" onClick={createRecordingNote}>
+                    <Icon name="add" />
+                  </div>
+                )}
               </div>
 
-              <div className="recording-list-screen-bottom-bar">
+              {/* <div className="d-flex recording-list-screen-bottom-bar">
+                <div className="button" onClick={goToRecordingListScreen}>
+                  <Icon name="list" />
+                </div>
+                {process.env['NODE_ENV'] === 'development' && (
+                  <div className="button" onClick={debugAudioVisualizer.start}>
+                    <Icon name="leaderboard" />
+                  </div>
+                )}
                 <div className="button" onClick={goToRecordingListScreen}>
                   <Icon name="list" />
                 </div>
@@ -270,7 +312,7 @@ export default function RecordingListScreen() {
                     <Icon name="add" />
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
           <div className="col-md-4">
@@ -319,62 +361,5 @@ export default function RecordingListScreen() {
         </div>
       </div>
     </div>
-    // <div className="container">
-    //   <div className="row">
-    //     <div className="col-lg-12">
-    //       <button
-    //         className="btn btn-primary mb-3"
-    //         disabled={recordings.isStartingToRecord}
-    //         onClick={
-    //           recordings.isRecording
-    //             ? recordings.stopRecording
-    //             : recordings.startRecording
-    //         }
-    //       >
-    //         {recordings.isStartingToRecord
-    //           ? 'Starting...'
-    //           : recordings.isRecording
-    //           ? 'Stop recording'
-    //           : 'Start recording'}
-    //       </button>
-    //     </div>
-    //   </div>
-    //   <div className="row">
-    //     <div
-    //       ref={recordingListScrollViewRef}
-    //       className="col-lg-12"
-    //       style={{
-    //         overflow: 'auto',
-    //         maxHeight: '20rem',
-    //       }}
-    //       onScroll={onScrollRecordingList}
-    //     >
-    //       {recordingList.map((r) => (
-    //         <div
-    //           className={classNames('d-flex recording-item', {
-    //             'mb-3': r !== recordingList[recordingList.length - 1],
-    //           })}
-    //           key={r.id}
-    //         >
-    //           <div className="justify-content-center align-items-center d-flex">
-    //             <Icon name="save" />
-    //           </div>
-    //           <div className="flex-fill"></div>
-    //           <div>
-    //             <div>{r.duration}</div>
-    //             {r.isRecording ? null : (
-    //               <div>
-    //                 <Link to={`/recording/${r.id}`}>
-    //                   {`#${r.id.split('-')[0]}`}
-    //                 </Link>
-    //               </div>
-    //             )}
-    //             <div>{r.size} bytes</div>
-    //           </div>
-    //         </div>
-    //       ))}
-    //     </div>
-    //   </div>
-    // </div>
   );
 }

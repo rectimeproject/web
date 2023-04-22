@@ -350,7 +350,7 @@ export default class Recorder extends EventEmitter<{
     /**
      * connect analyzer node back to audio context
      */
-    workletNode.connect(this.#audioContext.destination);
+    // workletNode.connect(this.#audioContext.destination);
     const recordingState: IRecordingRecorderState = {
       sampleCount: 0,
       device: device

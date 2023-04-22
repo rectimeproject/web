@@ -12,72 +12,79 @@ export default function AnalyserNodeView({
   isPlaying: boolean;
   canvasHeight?: number | string;
   canvasWidth?: number | string;
-  visualizationMode?: {
-    barWidth: number;
-    type: 'verticalBars';
-  };
+  visualizationMode:
+    | {
+        type: 'verticalBars';
+        barWidth: number;
+      }
+    | {
+        type: 'webgl';
+        barWidth: number;
+      };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameIdRef = useRef<number | null>(null);
 
   const renderingDataRef = useRef<{
     analyserNode: AnalyserNode<IAudioContext>;
     data: Uint8Array;
-    width: number;
-    height: number;
+    x: number;
+    frameId: number;
   } | null>(null);
-  const draw = useCallback(() => {
-    const current = canvasRef.current;
-    const ctx = current?.getContext('2d');
-    const renderingData = renderingDataRef.current;
-    if (!current || !ctx || renderingData === null || isPlaying === null) {
-      if (ctx && current) {
-        ctx.clearRect(0, 0, current.width, current.height);
+  const draw = useCallback(
+    (_: number) => {
+      const current = canvasRef.current;
+      const renderingData = renderingDataRef.current;
+      if (renderingData === null || current === null || isPlaying === null) {
+        return;
       }
-      return;
-    }
-
-    /**
-     * redraw
-     */
-    frameIdRef.current = requestAnimationFrame(draw);
-
-    const { analyserNode, data } = renderingData;
-
-    ctx.clearRect(0, 0, current.width, current.height);
-
-    switch (visualizationMode?.type) {
-      default: {
-        analyserNode.getByteTimeDomainData(data);
-
-        let x = 0;
-        const sliceWidth = current.width / data.length;
-
-        for (const v of data) {
-          const y = v / 128.0 - current.height;
-          ctx.fillStyle = `rgb(0,0,${v % 255})`;
-          ctx.fillRect(x, y, sliceWidth, current.height / 2);
-          x += sliceWidth;
+      switch (visualizationMode?.type) {
+        case 'webgl': {
+          const gl = current.getContext('webgl');
+          if (gl === null) {
+            break;
+          }
+          break;
         }
-        break;
-      }
-      case 'verticalBars': {
-        analyserNode.getByteFrequencyData(data);
+        case 'verticalBars': {
+          const ctx = current.getContext('2d');
 
-        const sliceWidth = current.width / 32;
-        let x = 0;
-        for (const barHeight of data) {
-          ctx.fillStyle = `rgb(${barHeight % 255},${barHeight % 255},${
-            barHeight % 255
-          })`;
+          if (!ctx) {
+            break;
+          }
 
-          ctx.fillRect(x, current.height, sliceWidth, -barHeight);
-          x += sliceWidth + 1;
+          /**
+           * redraw
+           */
+          renderingData.frameId = requestAnimationFrame(draw);
+
+          const { analyserNode, data } = renderingData;
+
+          ctx.clearRect(0, 0, current.width, current.height);
+
+          analyserNode.getByteFrequencyData(data);
+
+          let x = renderingData.x;
+          const sliceWidth = current.width / 64;
+          for (let height of data) {
+            ctx.fillStyle = '#495057';
+
+            height = Math.max(height, 10);
+
+            ctx.fillRect(
+              x,
+              current.height / 2 - height / 2,
+              sliceWidth,
+              height
+            );
+            x += sliceWidth;
+          }
+          // renderingData.x = x;
+          break;
         }
-        break;
       }
-    }
-  }, [canvasRef, visualizationMode, isPlaying, frameIdRef]);
+    },
+    [canvasRef, visualizationMode, isPlaying]
+  );
   const clearRenderingDataRef = useCallback(() => {
     renderingDataRef.current = null;
   }, [renderingDataRef]);
@@ -86,29 +93,35 @@ export default function AnalyserNodeView({
     const canvas = canvasRef.current;
 
     if (analyserNode !== null && isPlaying && canvas !== null) {
+      if (canvas.parentNode !== null) {
+        if (canvas.parentNode instanceof HTMLElement) {
+          canvas.width =
+            canvas.parentNode.offsetWidth * window.devicePixelRatio;
+          canvas.height =
+            canvas.parentNode.offsetHeight * window.devicePixelRatio;
+        }
+      }
       if (renderingDataRef.current === null) {
         analyserNode.fftSize = 2 ** 10;
         analyserNode.minDecibels = -90;
         analyserNode.maxDecibels = -10;
-        analyserNode.smoothingTimeConstant = 0.5;
+        // analyserNode.smoothingTimeConstant = 0.5;
         renderingDataRef.current = {
-          width: canvas.width,
-          height: canvas.height,
+          x: 0,
           data: new Uint8Array(analyserNode.frequencyBinCount),
           analyserNode,
+          frameId: requestAnimationFrame(draw),
         };
-        // canvas.width = renderingDataRef.current.width * window.devicePixelRatio;
-        // canvas.height =
-        //   renderingDataRef.current.height * window.devicePixelRatio;
-
-        draw();
       }
     } else {
       clearRenderingDataRef();
     }
     return () => {
-      if (frameIdRef.current !== null) {
-        cancelAnimationFrame(frameIdRef.current);
+      if (
+        renderingDataRef.current !== null &&
+        renderingDataRef.current.frameId !== null
+      ) {
+        cancelAnimationFrame(renderingDataRef.current.frameId);
       }
       clearRenderingDataRef();
     };

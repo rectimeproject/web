@@ -12,23 +12,23 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
       width: 100%;
     }
   }
-  &-bottom-bar {
-    .button {
-      width: $recording-list-screen-bottom-bar-button-size;
-      height: $recording-list-screen-bottom-bar-button-size;
-      border-radius: $recording-list-screen-bottom-bar-button-size;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      &:hover {
-        background-color: $gray-300;
-      }
-
-      span {
-        font-size: $recording-list-screen-bottom-bar-button-size * 0.5;
-      }
+  .button {
+    width: $recording-list-screen-bottom-bar-button-size;
+    height: $recording-list-screen-bottom-bar-button-size;
+    border-radius: $recording-list-screen-bottom-bar-button-size;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    &:hover {
+      background-color: $gray-300;
     }
+
+    span {
+      font-size: $recording-list-screen-bottom-bar-button-size * 0.5;
+    }
+  }
+  &-bottom-bar {
   }
 }
 
