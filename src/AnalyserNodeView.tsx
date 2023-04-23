@@ -5,8 +5,12 @@ interface IRenderingData {
   analyserNode: AnalyserNode<IAudioContext>;
   data: Uint8Array;
   x: number;
+  barCount: number;
+  offset: number;
   frameId: number;
   lastTime: number | null;
+  averageBuffer: Uint8Array;
+  sliceWidth: number;
 }
 
 export default function AnalyserNodeView({
@@ -76,26 +80,29 @@ export default function AnalyserNodeView({
 
           analyserNode.getByteFrequencyData(data);
 
-          let x = renderingData.x;
-          const sliceWidth = current.width / 64;
-          for (let height of data) {
+          let x = 0;
+          // const average = data.reduce((a, b) => a + b, 0) / data.length;
+          // renderingData.averageBuffer[renderingData.offset] = average;
+          // renderingData.offset =
+          //   (renderingData.offset + 1) % renderingData.averageBuffer.byteLength;
+          for (const height of data.map((h) => Math.max(h, 10))) {
             ctx.fillStyle = '#495057';
-
-            height = Math.max(height, 10);
-
             ctx.fillRect(
               x,
               current.height / 2 - height / 2,
-              sliceWidth,
+              renderingData.sliceWidth,
               height
             );
-            x += sliceWidth;
+            x += renderingData.sliceWidth;
           }
-          // renderingData.x -= 1 * (now - renderingData.lastTime);
-          console.log(1 * (now - renderingData.lastTime));
+          // const elapsed = (now - renderingData.lastTime) / 1000;
+          // renderingData.x -= renderingData.sliceWidth * elapsed;
+          // console.log(renderingData.sliceWidth * elapsed);
           break;
         }
       }
+
+      renderingData.lastTime = now;
     },
     [canvasRef, visualizationMode, isPlaying]
   );
@@ -120,9 +127,15 @@ export default function AnalyserNodeView({
         analyserNode.minDecibels = -90;
         analyserNode.maxDecibels = -10;
         // analyserNode.smoothingTimeConstant = 0.5;
+        const barCount = 64;
+        const sliceWidth = canvas.width / barCount;
         renderingDataRef.current = {
           lastTime: null,
+          barCount,
+          sliceWidth,
+          offset: 0,
           x: 0,
+          averageBuffer: new Uint8Array(barCount),
           data: new Uint8Array(analyserNode.frequencyBinCount),
           analyserNode,
           frameId: requestAnimationFrame(draw),
