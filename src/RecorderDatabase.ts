@@ -70,7 +70,7 @@ export default class RecorderDatabase extends Database<{
     const cursor = await this.transaction('recordings', 'readonly')
       .objectStore('recordings')
       .index('createdAt')
-      .openCursor();
+      .openCursor(null, 'prev');
     if (!cursor) {
       return null;
     }
