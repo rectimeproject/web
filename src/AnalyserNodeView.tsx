@@ -41,9 +41,8 @@ export default function AnalyserNodeView({
   const renderingDataRef = useRef<IRenderingData | null>(null);
   const draw = useCallback<FrameRequestCallback>(
     (now) => {
-      const current = canvasRef.current;
       const renderingData = renderingDataRef.current;
-      if (renderingData === null || current === null || isPlaying === null) {
+      if (renderingData === null || isPlaying === null) {
         return;
       }
       const drawImmediately = () => {
@@ -57,36 +56,24 @@ export default function AnalyserNodeView({
         return;
       }
       switch (visualizationMode?.type) {
-        case 'webgl': {
-          const gl = current.getContext('webgl');
-          if (gl === null) {
-            break;
-          }
-          break;
-        }
         case 'verticalBars': {
-          const ctx = current.getContext('2d');
-
-          if (!ctx) {
-            break;
-          }
-
           /**
            * redraw
            */
           drawImmediately();
 
-          const { analyserNode, data } = renderingData;
+          const {
+            canvas: current,
+            context: ctx,
+            analyserNode,
+            data,
+          } = renderingData;
 
           ctx.clearRect(0, 0, current.width, current.height);
 
           analyserNode.getByteFrequencyData(data);
 
           let x = 0;
-          // const average = data.reduce((a, b) => a + b, 0) / data.length;
-          // renderingData.averageBuffer[renderingData.offset] = average;
-          // renderingData.offset =
-          //   (renderingData.offset + 1) % renderingData.averageBuffer.byteLength;
           for (const height of data.map((h) => Math.max(h, 10))) {
             ctx.fillStyle = '#495057';
             ctx.fillRect(
@@ -103,11 +90,12 @@ export default function AnalyserNodeView({
 
       renderingData.lastTime = now;
     },
-    [canvasRef, visualizationMode, isPlaying]
+    [visualizationMode, isPlaying]
   );
   const clearRenderingDataRef = useCallback(() => {
     const current = renderingDataRef.current;
     if (current !== null && current.frameId !== null) {
+      current.context.fillStyle = '#495057';
       current.context.fillRect(
         0,
         0,
@@ -137,6 +125,7 @@ export default function AnalyserNodeView({
         const sliceWidth = canvas.width / barCount;
         const context = canvas.getContext('2d');
         if (context !== null) {
+          console.log('initializing rendering');
           renderingDataRef.current = {
             lastTime: null,
             barCount,
@@ -156,6 +145,11 @@ export default function AnalyserNodeView({
   }, [draw, analyserNode, isPlaying]);
 
   useEffect(() => () => clearRenderingDataRef(), [clearRenderingDataRef]);
+  useEffect(() => {
+    if (!isPlaying) {
+      clearRenderingDataRef();
+    }
+  }, [isPlaying, clearRenderingDataRef]);
 
   return <canvas width={canvasWidth} height={canvasHeight} ref={canvasRef} />;
 }

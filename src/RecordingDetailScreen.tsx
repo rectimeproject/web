@@ -90,7 +90,7 @@ export default function RecordingDetailScreen() {
                           type: 'verticalBars',
                           barWidth: 20,
                         }}
-                        canvasHeight={256}
+                        canvasHeight={256 * window.devicePixelRatio}
                         canvasWidth={
                           canvasContainerDimensions.width *
                           window.devicePixelRatio
