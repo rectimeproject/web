@@ -11,6 +11,8 @@ interface IRenderingData {
   lastTime: number | null;
   averageBuffer: Uint8Array;
   sliceWidth: number;
+  context: CanvasRenderingContext2D;
+  canvas: HTMLCanvasElement;
 }
 
 export default function AnalyserNodeView({
@@ -95,9 +97,6 @@ export default function AnalyserNodeView({
             );
             x += renderingData.sliceWidth;
           }
-          // const elapsed = (now - renderingData.lastTime) / 1000;
-          // renderingData.x -= renderingData.sliceWidth * elapsed;
-          // console.log(renderingData.sliceWidth * elapsed);
           break;
         }
       }
@@ -107,21 +106,28 @@ export default function AnalyserNodeView({
     [canvasRef, visualizationMode, isPlaying]
   );
   const clearRenderingDataRef = useCallback(() => {
-    renderingDataRef.current = null;
-  }, [renderingDataRef]);
+    const current = renderingDataRef.current;
+    if (current !== null && current.frameId !== null) {
+      current.context.fillRect(
+        0,
+        0,
+        current.canvas.width,
+        current.canvas.height
+      );
+      cancelAnimationFrame(current.frameId);
+      renderingDataRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (analyserNode !== null && isPlaying && canvas !== null) {
-      if (canvas.parentNode !== null) {
-        if (canvas.parentNode instanceof HTMLElement) {
-          canvas.width =
-            canvas.parentNode.offsetWidth * window.devicePixelRatio;
-          canvas.height =
-            canvas.parentNode.offsetHeight * window.devicePixelRatio;
-        }
-      }
+    if (
+      analyserNode !== null &&
+      isPlaying &&
+      canvas !== null &&
+      canvas.parentNode !== null
+    ) {
       if (renderingDataRef.current === null) {
         analyserNode.fftSize = 2 ** 10;
         analyserNode.minDecibels = -90;
@@ -129,30 +135,27 @@ export default function AnalyserNodeView({
         // analyserNode.smoothingTimeConstant = 0.5;
         const barCount = 64;
         const sliceWidth = canvas.width / barCount;
-        renderingDataRef.current = {
-          lastTime: null,
-          barCount,
-          sliceWidth,
-          offset: 0,
-          x: 0,
-          averageBuffer: new Uint8Array(barCount),
-          data: new Uint8Array(analyserNode.frequencyBinCount),
-          analyserNode,
-          frameId: requestAnimationFrame(draw),
-        };
+        const context = canvas.getContext('2d');
+        if (context !== null) {
+          renderingDataRef.current = {
+            lastTime: null,
+            barCount,
+            canvas,
+            sliceWidth,
+            offset: 0,
+            context,
+            x: 0,
+            averageBuffer: new Uint8Array(barCount),
+            data: new Uint8Array(analyserNode.frequencyBinCount),
+            analyserNode,
+            frameId: requestAnimationFrame(draw),
+          };
+        }
       }
-    } else {
-      clearRenderingDataRef();
     }
-    return () => {
-      if (
-        renderingDataRef.current !== null &&
-        renderingDataRef.current.frameId !== null
-      ) {
-        cancelAnimationFrame(renderingDataRef.current.frameId);
-      }
-      clearRenderingDataRef();
-    };
-  }, [draw, analyserNode, clearRenderingDataRef, isPlaying]);
+  }, [draw, analyserNode, isPlaying]);
+
+  useEffect(() => () => clearRenderingDataRef(), [clearRenderingDataRef]);
+
   return <canvas width={canvasWidth} height={canvasHeight} ref={canvasRef} />;
 }

@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 import useRecorderDatabase from './useRecorderDatabase';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useRecordingPlayer from './useRecordingPlayer';
 import ActivityIndicator from './ActivityIndicator';
 import { DateTime } from 'luxon';
@@ -20,9 +20,6 @@ export default function RecordingDetailScreen() {
       recorderDatabase.getRecording(recordingId);
     }
   }, [recorderDatabase, recordingId, recording]);
-  useEffect(() => {
-    getRecording();
-  }, [getRecording, recordingId]);
   const play = useCallback(() => {
     if (recording !== null) {
       recordingPlayer.play(recording);
@@ -32,6 +29,24 @@ export default function RecordingDetailScreen() {
     () => filesize(recording?.size ?? 0).toString(),
     [recording]
   );
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    getRecording();
+  }, [getRecording, recordingId]);
+  const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  useEffect(() => {
+    if (canvasContainerRef.current !== null) {
+      setCanvasContainerDimensions({
+        width: canvasContainerRef.current.offsetWidth,
+        height: canvasContainerRef.current.offsetHeight,
+      });
+    } else {
+      setCanvasContainerDimensions(null);
+    }
+  }, []);
   if (recording === null) {
     return null;
   }
@@ -63,15 +78,25 @@ export default function RecordingDetailScreen() {
                       />
                     </div>
                   </div>
-                  <div className="flex-fill mx-3 canvas-container">
-                    <AnalyserNodeView
-                      visualizationMode={{
-                        type: 'verticalBars',
-                        barWidth: 20,
-                      }}
-                      isPlaying={recordingPlayer.playing !== null}
-                      analyserNode={recordingPlayer.analyserNode()}
-                    />
+                  <div
+                    className="flex-fill mx-3 canvas-container"
+                    ref={canvasContainerRef}
+                  >
+                    {canvasContainerDimensions !== null ? (
+                      <AnalyserNodeView
+                        visualizationMode={{
+                          type: 'verticalBars',
+                          barWidth: 20,
+                        }}
+                        canvasHeight={256}
+                        canvasWidth={
+                          canvasContainerDimensions.width *
+                          window.devicePixelRatio
+                        }
+                        isPlaying={recordingPlayer.playing !== null}
+                        analyserNode={recordingPlayer.analyserNode()}
+                      />
+                    ) : null}
                     {recordingPlayer.playing !== null &&
                       recordingPlayer.playing.cursor !== null && (
                         <div className="duration">
