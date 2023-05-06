@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 import useRecorderDatabase from './useRecorderDatabase';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useRecordingPlayer from './useRecordingPlayer';
 import ActivityIndicator from './ActivityIndicator';
 import { DateTime } from 'luxon';
@@ -29,24 +29,26 @@ export default function RecordingDetailScreen() {
     () => filesize(recording?.size ?? 0).toString(),
     [recording]
   );
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    getRecording();
-  }, [getRecording, recordingId]);
   const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
     width: number;
     height: number;
   } | null>(null);
   useEffect(() => {
-    if (canvasContainerRef.current !== null) {
-      setCanvasContainerDimensions({
-        width: canvasContainerRef.current.offsetWidth,
-        height: canvasContainerRef.current.offsetHeight,
-      });
-    } else {
-      setCanvasContainerDimensions(null);
-    }
-  }, []);
+    getRecording();
+  }, [getRecording, recordingId]);
+  const onCanvasContainerElementMount = useCallback(
+    (current: HTMLDivElement | null) => {
+      if (current !== null) {
+        setCanvasContainerDimensions({
+          width: current.offsetWidth,
+          height: current.offsetHeight,
+        });
+      } else {
+        setCanvasContainerDimensions(null);
+      }
+    },
+    [setCanvasContainerDimensions]
+  );
   if (recording === null) {
     return null;
   }
@@ -80,7 +82,7 @@ export default function RecordingDetailScreen() {
                   </div>
                   <div
                     className="flex-fill mx-3 canvas-container"
-                    ref={canvasContainerRef}
+                    ref={onCanvasContainerElementMount}
                   >
                     {canvasContainerDimensions !== null ? (
                       <AnalyserNodeView
