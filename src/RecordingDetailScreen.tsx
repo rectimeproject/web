@@ -1,30 +1,30 @@
-import { useParams } from 'react-router';
-import useRecorderDatabase from './useRecorderDatabase';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import useRecordingPlayer from './useRecordingPlayer';
-import ActivityIndicator from './ActivityIndicator';
-import { DateTime } from 'luxon';
-import secondsToHumanReadable from './secondsToHumanReadable';
-import AnalyserNodeView from './AnalyserNodeView';
-import Icon from './Icon';
-import { filesize } from 'filesize';
+import { useParams } from "react-router";
+import useRecorderDatabase from "./useRecorderDatabase";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import useRecordingPlayer from "./useRecordingPlayer";
+import ActivityIndicator from "./ActivityIndicator";
+import { DateTime } from "luxon";
+import secondsToHumanReadable from "./secondsToHumanReadable";
+import AnalyserNodeView from "./AnalyserNodeView";
+import Icon from "./Icon";
+import { filesize } from "filesize";
 
 export default function RecordingDetailScreen() {
   const recorderDatabase = useRecorderDatabase();
-  const recordingPlayer = useRecordingPlayer();
+  const player = useRecordingPlayer();
   const { recordingId } = useParams<{ recordingId: string }>();
   const recording =
     recorderDatabase.recordings.find((r) => r.id === recordingId) ?? null;
   const getRecording = useCallback(() => {
-    if (!recording && typeof recordingId === 'string') {
+    if (!recording && typeof recordingId === "string") {
       recorderDatabase.getRecording(recordingId);
     }
   }, [recorderDatabase, recordingId, recording]);
   const play = useCallback(() => {
     if (recording !== null) {
-      recordingPlayer.play(recording);
+      player.play(recording);
     }
-  }, [recording, recordingPlayer]);
+  }, [recording, player]);
   const humanReadableRecordingSize = useMemo(
     () => filesize(recording?.size ?? 0).toString(),
     [recording]
@@ -49,6 +49,8 @@ export default function RecordingDetailScreen() {
     },
     [setCanvasContainerDimensions]
   );
+  // REC-1
+  // const onChangePlayerCursor = useCallback(() => {}, []);
   if (recording === null) {
     return null;
   }
@@ -65,18 +67,10 @@ export default function RecordingDetailScreen() {
                   <div className="d-flex align-items-center">
                     <div
                       className="recording-screen-play-button"
-                      onClick={
-                        recordingPlayer.playing !== null
-                          ? recordingPlayer.pause
-                          : play
-                      }
+                      onClick={player.playing !== null ? player.pause : play}
                     >
                       <Icon
-                        name={
-                          recordingPlayer.playing !== null
-                            ? 'pause'
-                            : 'play_arrow'
-                        }
+                        name={player.playing !== null ? "pause" : "play_arrow"}
                       />
                     </div>
                   </div>
@@ -87,7 +81,7 @@ export default function RecordingDetailScreen() {
                     {canvasContainerDimensions !== null ? (
                       <AnalyserNodeView
                         visualizationMode={{
-                          type: 'verticalBars',
+                          type: "verticalBars",
                           barWidth: 20,
                         }}
                         canvasHeight={256 * window.devicePixelRatio}
@@ -95,16 +89,14 @@ export default function RecordingDetailScreen() {
                           canvasContainerDimensions.width *
                           window.devicePixelRatio
                         }
-                        isPlaying={recordingPlayer.playing !== null}
-                        analyserNode={recordingPlayer.analyserNode()}
+                        isPlaying={player.playing !== null}
+                        analyserNode={player.analyserNode()}
                       />
                     ) : null}
-                    {recordingPlayer.playing !== null &&
-                      recordingPlayer.playing.cursor !== null && (
+                    {player.playing !== null &&
+                      player.playing.cursor !== null && (
                         <div className="duration">
-                          {secondsToHumanReadable(
-                            recordingPlayer.playing.cursor
-                          )}
+                          {secondsToHumanReadable(player.playing.cursor)}
                         </div>
                       )}
                   </div>
@@ -113,6 +105,15 @@ export default function RecordingDetailScreen() {
             )}
           </div>
           <div className="col-md-4 col-xs-12">
+            {/* {player.playing !== null && player.playing.cursor !== null && (
+              <input
+                max={recording.duration / 1000}
+                type="range"
+                onChange={onChangePlayerCursor}
+                value={player.playing.cursor}
+                className="form-range"
+              />
+            )} */}
             <hr />
             <div>
               <h4>Information</h4>
@@ -121,7 +122,7 @@ export default function RecordingDetailScreen() {
               <div>Channels: {recording.channels}</div>
               <div>Frame size: {recording.frameSize}</div>
               <div>
-                Created at:{' '}
+                Created at:{" "}
                 {DateTime.fromJSDate(recording.createdAt).toLocaleString(
                   DateTime.DATETIME_SHORT
                 )}

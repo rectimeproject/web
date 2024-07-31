@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RecordingV1 } from './RecorderDatabase';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RecordingV1 } from "./RecorderDatabase";
 import {
   createDecoder,
   decodeFloat,
   destroyDecoder,
-} from 'opus-codec-worker/actions/actions';
-import useRecorderContext from './useRecorderContext';
-import blobToArrayBuffer from './blobToArrayBuffer';
+} from "opus-codec-worker/actions/actions";
+import useRecorderContext from "./useRecorderContext";
+import blobToArrayBuffer from "./blobToArrayBuffer";
 import {
   AnalyserNode,
   AudioBufferSourceNode,
   IAudioBuffer,
   IAudioContext,
-} from 'standardized-audio-context';
-import useInterval from './useInterval';
-import { useRecorderDatabaseContext } from './RecorderDatabaseContext';
-import { RingBuffer } from 'opus-codec/opus';
+} from "standardized-audio-context";
+import useInterval from "./useInterval";
+import { useRecorderDatabaseContext } from "./RecorderDatabaseContext";
+import { RingBuffer } from "opus-codec/opus";
 
 interface IScheduleItem {
   audioBuffer: IAudioBuffer;
@@ -29,6 +29,7 @@ export interface IImmutablePlayingState {
 }
 
 interface IState {
+  destroying: Promise<void> | null;
   recordingId: string;
   ringBuffer: RingBuffer;
   decoderId: string | null;
@@ -62,8 +63,8 @@ export default function useRecordingPlayer() {
     recorderContext.opus.client
       .sendMessage(destroyDecoder(state.decoderId))
       .then((result) => {
-        if ('failures' in result) {
-          console.error('failed to destroy decoder with error: %o', result);
+        if ("failures" in result) {
+          console.error("failed to destroy decoder with error: %o", result);
         }
       })
       .finally(() => {
@@ -101,10 +102,37 @@ export default function useRecordingPlayer() {
     },
     [recorderContext.opus.client, recorderContext.audioContext]
   );
+  const updatePlayingState = useCallback(() => {
+    setPlaying((playing) => {
+      const schedule = stateRef.current?.schedule;
+      const initialCurrentTime =
+        stateRef.current?.playingState?.initialCurrentTime;
+      if (
+        typeof initialCurrentTime !== "number" ||
+        typeof schedule === "undefined"
+      ) {
+        return playing;
+      }
+      const ctx = recorderContext.audioContext;
+      let lastScheduleItem: IScheduleItem | null = null;
+      for (const scheduleItem of schedule) {
+        if (ctx.currentTime > initialCurrentTime + scheduleItem.startTime) {
+          lastScheduleItem = scheduleItem;
+        }
+      }
+      if (lastScheduleItem && playing) {
+        return {
+          ...playing,
+          cursor: lastScheduleItem.startTime,
+        };
+      }
+      return playing;
+    });
+  }, [setPlaying, recorderContext.audioContext]);
   const play = useCallback(
     (recording: RecordingV1) => {
       if (stateRef.current || recording.channels !== 1) {
-        console.error('failed to play: %o', recording);
+        console.error("failed to play: %o", recording);
         return;
       }
       const client = recorderContext.opus.client;
@@ -118,12 +146,13 @@ export default function useRecordingPlayer() {
 
       createDecoderAndResumeAudioContext(recording).then(
         async ([decoderId]) => {
-          if ('failures' in decoderId) {
-            console.error('failed to create decoder: %o', decoderId);
+          if ("failures" in decoderId) {
+            console.error("failed to create decoder: %o", decoderId);
             return;
           }
 
           const state: IState = {
+            destroying: null,
             /**
              * defer a full second of a recording before actually playing
              */
@@ -146,11 +175,11 @@ export default function useRecordingPlayer() {
           const maybePlaySchedule = () => {
             const current = stateRef.current;
             if (current === null) {
-              console.error('maybePlaySchedule failed, because state is null');
+              console.error("maybePlaySchedule failed, because state is null");
               return false;
             }
 
-            let playingState: IState['playingState'];
+            let playingState: IState["playingState"];
 
             if (current.playingState === null) {
               if (
@@ -160,7 +189,7 @@ export default function useRecordingPlayer() {
                 return true;
               }
               console.log(
-                'starting to play with duration offset at: %d',
+                "starting to play with duration offset at: %d",
                 current.durationOffset
               );
               playingState = {
@@ -179,7 +208,7 @@ export default function useRecordingPlayer() {
               i++
             ) {
               const item = schedule[i];
-              if (typeof item === 'undefined') return false;
+              if (typeof item === "undefined") return false;
               const { sourceNode, audioBuffer } = item;
               sourceNode.connect(current.analyserNode);
               sourceNode.start(playingState.lastTime);
@@ -233,9 +262,9 @@ export default function useRecordingPlayer() {
                 encoded: arrayBuffer,
               })
             );
-            if ('failures' in decoded) {
+            if ("failures" in decoded) {
               console.error(
-                'aborting: failed to decode blob part: %o',
+                "aborting: failed to decode blob part: %o",
                 decoded
               );
               return false;
@@ -255,13 +284,13 @@ export default function useRecordingPlayer() {
           };
 
           const recordingData = await db
-            .transaction('recordingData', 'readonly')
-            .objectStore('recordingData')
-            .index('recordingId')
+            .transaction("recordingData", "readonly")
+            .objectStore("recordingData")
+            .index("recordingId")
             .get(recording.id);
 
           if (recordingData === null) {
-            console.error('failed to get recording data: %s', recording.id);
+            console.error("failed to get recording data: %s", recording.id);
             return;
           }
 
@@ -291,7 +320,7 @@ export default function useRecordingPlayer() {
             if (drainedSamples !== null) {
               if (!scheduleSamples(drainedSamples)) {
                 console.error(
-                  'failed to schedule drained samples: %o',
+                  "failed to schedule drained samples: %o",
                   drainedSamples
                 );
                 break;
@@ -307,7 +336,7 @@ export default function useRecordingPlayer() {
           } else {
             for (const { sourceNode } of schedule.slice(schedule.length - 1)) {
               sourceNode.addEventListener(
-                'ended',
+                "ended",
                 onFinishedPlayingLastSourceNode
               );
             }
@@ -328,37 +357,14 @@ export default function useRecordingPlayer() {
       pause,
     ]
   );
+  /**
+   * pause when hook is destroyed
+   */
   useEffect(() => pause, [pause]);
   useEffect(() => {
-    interval.setCallback(() => {
-      setPlaying((playing) => {
-        const schedule = stateRef.current?.schedule;
-        const initialCurrentTime =
-          stateRef.current?.playingState?.initialCurrentTime;
-        if (
-          typeof initialCurrentTime !== 'number' ||
-          typeof schedule === 'undefined'
-        ) {
-          return playing;
-        }
-        const ctx = recorderContext.audioContext;
-        let lastScheduleItem: IScheduleItem | null = null;
-        for (const scheduleItem of schedule) {
-          if (ctx.currentTime > initialCurrentTime + scheduleItem.startTime) {
-            lastScheduleItem = scheduleItem;
-          }
-        }
-        if (lastScheduleItem && playing) {
-          return {
-            ...playing,
-            cursor: lastScheduleItem.startTime,
-          };
-        }
-        return playing;
-      });
-    });
+    interval.setCallback(updatePlayingState);
     interval.start();
-  }, [stateRef, interval, setPlaying, recorderContext]);
+  }, [interval, updatePlayingState]);
   return useMemo(
     () => ({
       play,
