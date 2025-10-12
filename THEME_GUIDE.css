@@ -1,0 +1,111 @@
+/* Theme Color Customization Guide */
+
+/* 
+  This file contains the complete color system for RecTime.
+  Colors are defined using HSL (Hue, Saturation, Lightness) values.
+  
+  To customize:
+  1. Find the color you want to change
+  2. Update the HSL values
+  3. Save and refresh the browser
+  
+  Use https://hslpicker.com/ to find HSL values
+*/
+
+:root {
+  /* Background Colors */
+  --background: 0 0% 100%; /* White background */
+  --foreground: 222.2 84% 4.9%; /* Dark text */
+
+  /* Card Colors */
+  --card: 0 0% 100%; /* Card background */
+  --card-foreground: 222.2 84% 4.9%; /* Card text */
+
+  /* Popover Colors */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  /* Primary Brand Color (Blue) */
+  --primary: 221.2 83.2% 53.3%; /* Main brand blue */
+  --primary-foreground: 210 40% 98%; /* Text on primary */
+
+  /* Secondary Colors (Gray) */
+  --secondary: 210 40% 96.1%; /* Light gray */
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  /* Muted Colors */
+  --muted: 210 40% 96.1%; /* Subtle background */
+  --muted-foreground: 215.4 16.3% 46.9%; /* Muted text */
+
+  /* Accent Colors */
+  --accent: 210 40% 96.1%; /* Accent background */
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  /* Destructive/Error Colors (Red) */
+  --destructive: 0 84.2% 60.2%; /* Error red */
+  --destructive-foreground: 210 40% 98%;
+
+  /* Border & Input */
+  --border: 214.3 31.8% 91.4%; /* Border color */
+  --input: 214.3 31.8% 91.4%; /* Input border */
+  --ring: 221.2 83.2% 53.3%; /* Focus ring */
+
+  /* Border Radius */
+  --radius: 0.5rem; /* 8px */
+}
+
+.dark {
+  /* Dark Mode Background */
+  --background: 222.2 84% 4.9%; /* Dark blue-gray */
+  --foreground: 210 40% 98%; /* Light text */
+
+  /* Dark Mode Cards */
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  /* Dark Mode Popover */
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  /* Dark Mode Primary */
+  --primary: 217.2 91.2% 59.8%; /* Brighter blue for dark mode */
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  /* Dark Mode Secondary */
+  --secondary: 217.2 32.6% 17.5%; /* Dark gray-blue */
+  --secondary-foreground: 210 40% 98%;
+
+  /* Dark Mode Muted */
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  /* Dark Mode Accent */
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  /* Dark Mode Destructive */
+  --destructive: 0 62.8% 30.6%; /* Darker red for dark mode */
+  --destructive-foreground: 210 40% 98%;
+
+  /* Dark Mode Borders */
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+}
+
+/* 
+  Example Customizations:
+  
+  1. Change primary color to purple:
+     --primary: 271 91% 65%;
+  
+  2. Make background warmer (light mode):
+     --background: 30 20% 98%;
+  
+  3. Adjust border radius:
+     --radius: 1rem; (for more rounded corners)
+     --radius: 0.25rem; (for sharper corners)
+  
+  4. Custom accent color (green):
+     --accent: 142 71% 45%;
+*/
