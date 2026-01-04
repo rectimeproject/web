@@ -63,11 +63,45 @@ export default function useRecordingNotes() {
     },
     [database, setIsCreatingNode, isCreatingNode, getRecordingNote]
   );
+  const getRecordingNotesByRecordingId = useCallback(
+    async (recordingId: string): Promise<IRecordingNote[]> => {
+      const notes: IRecordingNote[] = [];
+      const cursor = await database
+        .transaction('recordingNotes', 'readonly')
+        .objectStore('recordingNotes')
+        .index('recordingId')
+        .openCursor(IDBKeyRange.only(recordingId));
+
+      return new Promise((resolve) => {
+        if (!cursor) {
+          resolve([]);
+          return;
+        }
+
+        cursor.onsuccess = () => {
+          if (cursor.result) {
+            notes.push(cursor.result.value);
+            cursor.result.continue();
+          } else {
+            resolve(notes);
+          }
+        };
+
+        cursor.onerror = () => {
+          console.error('Failed to fetch notes:', cursor.error);
+          resolve([]);
+        };
+      });
+    },
+    [database]
+  );
+
   return useMemo(
     () => ({
       createRecordingNote,
       recordingNotes,
+      getRecordingNotesByRecordingId,
     }),
-    [recordingNotes, createRecordingNote]
+    [recordingNotes, createRecordingNote, getRecordingNotesByRecordingId]
   );
 }

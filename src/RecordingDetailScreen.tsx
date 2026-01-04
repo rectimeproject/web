@@ -5,16 +5,44 @@ import useRecordingPlayer from "./useRecordingPlayer";
 import ActivityIndicator from "./ActivityIndicator";
 import { DateTime } from "luxon";
 import secondsToHumanReadable from "./secondsToHumanReadable";
-import AnalyserNodeView from "./AnalyserNodeView";
+import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
 import Icon from "./Icon";
 import { filesize } from "filesize";
+import useRecordingNotes from "./useRecordingNotes";
 
 export default function RecordingDetailScreen() {
   const recorderDatabase = useRecorderDatabase();
   const player = useRecordingPlayer();
+  const recordingNotes = useRecordingNotes();
   const { recordingId } = useParams<{ recordingId: string }>();
   const recording =
     recorderDatabase.recordings.find((r) => r.id === recordingId) ?? null;
+  const [recordingBookmarks, setRecordingBookmarks] = useState<Array<{
+    id: string;
+    durationOffset: number;
+    title: string;
+  }>>([]);
+
+  // Load bookmarks for recording
+  useEffect(() => {
+    if (recording?.id) {
+      recordingNotes.getRecordingNotesByRecordingId(recording.id)
+        .then(notes => setRecordingBookmarks(notes.map(n => ({
+          id: n.id,
+          durationOffset: n.durationOffset,
+          title: n.title,
+        }))));
+    }
+  }, [recording?.id, recordingNotes]);
+
+  const handleBookmarkClick = useCallback((bookmark: { id: string; durationOffset: number }) => {
+    // Seek to bookmark timestamp
+    if (player.playing !== null) {
+      player.seek(bookmark.durationOffset / 1000);
+    } else if (recording !== null) {
+      player.play(recording, bookmark.durationOffset / 1000);
+    }
+  }, [player, recording]);
   const getRecording = useCallback(() => {
     if (!recording && typeof recordingId === "string") {
       recorderDatabase.getRecording(recordingId);
@@ -79,18 +107,19 @@ export default function RecordingDetailScreen() {
                     ref={onCanvasContainerElementMount}
                   >
                     {canvasContainerDimensions !== null ? (
-                      <AnalyserNodeView
+                      <PixiAnalyserNodeView
                         visualizationMode={{
                           type: "verticalBars",
                           barWidth: 20,
                         }}
-                        canvasHeight={256 * window.devicePixelRatio}
-                        canvasWidth={
-                          canvasContainerDimensions.width *
-                          window.devicePixelRatio
-                        }
+                        canvasHeight={256}
+                        canvasWidth={canvasContainerDimensions.width}
                         isPlaying={player.playing !== null}
                         analyserNode={player.analyserNode()}
+                        bookmarks={recordingBookmarks}
+                        currentDuration={player.playing?.cursor ? player.playing.cursor * 1000 : 0}
+                        totalDuration={recording?.duration}
+                        onBookmarkClick={handleBookmarkClick}
                       />
                     ) : null}
                     {player.playing !== null &&

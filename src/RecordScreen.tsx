@@ -17,7 +17,7 @@ import { CodecId } from 'opus-codec-worker/actions/actions';
 import { RecorderStateType } from './Recorder';
 import { filesize } from 'filesize';
 import Icon from './Icon';
-import AnalyserNodeView from './AnalyserNodeView';
+import PixiAnalyserNodeView from './PixiAnalyserNodeView';
 import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
 import { useNavigate } from 'react-router';
 import useNavigatorStorage from './useNavigatorStorage';
@@ -214,10 +214,41 @@ export default function RecordingListScreen() {
     }
   }, [mediaDevices]);
   const recordingNotes = useRecordingNotes();
+  const [recordingBookmarks, setRecordingBookmarks] = useState<Array<{
+    id: string;
+    durationOffset: number;
+    title: string;
+  }>>([]);
+
+  // Load bookmarks when recording starts
+  useEffect(() => {
+    if (recording?.id) {
+      recordingNotes.getRecordingNotesByRecordingId(recording.id)
+        .then(notes => setRecordingBookmarks(notes.map(n => ({
+          id: n.id,
+          durationOffset: n.durationOffset,
+          title: n.title,
+        }))));
+    } else {
+      setRecordingBookmarks([]);
+    }
+  }, [recording?.id, recordingNotes]);
+
+  const [recentBookmark, setRecentBookmark] = useState(false);
+
   const createRecordingNote = useCallback(() => {
     if (recording) {
-      console.log(recording.duration);
+      const newBookmark = {
+        id: crypto.getRandomValues(new Uint32Array(4)).join('-'),
+        durationOffset: recording.duration,
+        title: '',
+      };
+      setRecordingBookmarks(prev => [...prev, newBookmark]);
       recordingNotes.createRecordingNote(recording.id, recording.duration);
+
+      // Visual feedback
+      setRecentBookmark(true);
+      setTimeout(() => setRecentBookmark(false), 500);
     }
   }, [recordingNotes, recording]);
   return (
@@ -228,16 +259,18 @@ export default function RecordingListScreen() {
             <div className="d-flex flex-column flex-fill">
               <div className="flex-fill">
                 <div className="canvas-container d-flex justify-content-end">
-                  <AnalyserNodeView
+                  <PixiAnalyserNodeView
                     canvasWidth="100%"
+                    canvasHeight={256}
                     visualizationMode={visualizationMode}
-                    // isPlaying={recording !== null}
                     isPlaying
                     analyserNode={
                       recording === null
                         ? debugAudioVisualizer.analyserNode
                         : analyserNodeRef.current
                     }
+                    bookmarks={recordingBookmarks}
+                    currentDuration={recording?.duration ?? 0}
                   />
                 </div>
               </div>
@@ -270,7 +303,7 @@ export default function RecordingListScreen() {
                 <div className="button" onClick={goToRecordingListScreen}>
                   <Icon name="list" />
                 </div>
-                {process.env['NODE_ENV'] === 'development' && (
+                {import.meta.env.DEV && (
                   <div
                     className="button"
                     onClick={
@@ -289,7 +322,10 @@ export default function RecordingListScreen() {
                   </div>
                 )}
                 {recordings.recording !== null && (
-                  <div className="button" onClick={createRecordingNote}>
+                  <div
+                    className={`button ${recentBookmark ? 'bookmark-created' : ''}`}
+                    onClick={createRecordingNote}
+                  >
                     <Icon name="add" />
                   </div>
                 )}
@@ -299,7 +335,7 @@ export default function RecordingListScreen() {
                 <div className="button" onClick={goToRecordingListScreen}>
                   <Icon name="list" />
                 </div>
-                {process.env['NODE_ENV'] === 'development' && (
+                {import.meta.env.DEV && (
                   <div className="button" onClick={debugAudioVisualizer.start}>
                     <Icon name="leaderboard" />
                   </div>

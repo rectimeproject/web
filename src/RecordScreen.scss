@@ -24,11 +24,25 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
       background-color: $gray-300;
     }
 
+    &.bookmark-created {
+      animation: pulse 0.5s ease-in-out;
+      background-color: #28a745;
+    }
+
     span {
       font-size: $recording-list-screen-bottom-bar-button-size * 0.5;
     }
   }
   &-bottom-bar {
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
   }
 }
 
