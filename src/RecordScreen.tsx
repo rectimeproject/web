@@ -28,6 +28,7 @@ import useDebounce from './useDebounce';
 import useRecordingNotes from './useRecordingNotes';
 import useDebugAudioVisualizer from './useDebugAudioVisualizer';
 import useTheme from './useTheme';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function RecordingListScreen() {
   const theme = useTheme();
@@ -56,15 +57,20 @@ export default function RecordingListScreen() {
   }, [navigate]);
   const visualizationMode = useMemo(
     () =>
-      ({
-        type: 'timeline',
-        samplesPerSecond: 20,
-      } as const),
+    ({
+      type: 'timeline',
+      samplesPerSecond: 20,
+      timeWindowSeconds: 10, // Show only last 10 seconds
+    } as const),
     []
   );
 
   // Waveform data for timeline visualization
   const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
+  const recording =
+    db.recordings.find(
+      (r) => r.encoderId === recordings.recording?.encoderId
+    ) ?? null;
 
   // Capture waveform data during recording
   useEffect(() => {
@@ -74,25 +80,27 @@ export default function RecordingListScreen() {
     }
 
     const analyserNode = analyserNodeRef.current;
-    analyserNode.fftSize = 2 ** 10;
-    analyserNode.minDecibels = -90;
-    analyserNode.maxDecibels = -10;
+    analyserNode.fftSize = 2 ** 11; // Higher resolution for better waveform
+    analyserNode.smoothingTimeConstant = 0.3; // Smooth out the waveform
 
-    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+    const dataArray = new Uint8Array(analyserNode.fftSize);
     const samplesPerSecond = 20; // Sample 20 times per second
     const intervalMs = 1000 / samplesPerSecond;
 
     const captureInterval = setInterval(() => {
-      analyserNode.getByteFrequencyData(dataArray);
+      // Use time domain data for actual waveform amplitude
+      analyserNode.getByteTimeDomainData(dataArray);
 
-      // Calculate average amplitude across all frequencies
-      let sum = 0;
+      // Calculate RMS (Root Mean Square) for better amplitude representation
+      let sumSquares = 0;
       for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i];
+        const normalized = (dataArray[i] - 128) / 128; // Center around 0
+        sumSquares += normalized * normalized;
       }
-      const average = sum / dataArray.length;
+      const rms = Math.sqrt(sumSquares / dataArray.length);
+      const amplitude = rms * 255; // Scale back to 0-255 range
 
-      setWaveformSamples(prev => [...prev, average]);
+      setWaveformSamples(prev => [...prev, amplitude]);
     }, intervalMs);
 
     return () => {
@@ -162,10 +170,6 @@ export default function RecordingListScreen() {
    * update current recording in case recording is happening
    */
   const checkRecordingInterval = useInterval(500);
-  const recording =
-    db.recordings.find(
-      (r) => r.encoderId === recordings.recording?.encoderId
-    ) ?? null;
   const recordingSizeOrQuota = useMemo(() => {
     if (recording) {
       return recording.size;
@@ -271,43 +275,60 @@ export default function RecordingListScreen() {
     }
   }, [mediaDevices]);
   const recordingNotes = useRecordingNotes();
-  const [recordingBookmarks, setRecordingBookmarks] = useState<Array<{
-    id: string;
-    durationOffset: number;
-    title: string;
-  }>>([]);
+  const queryClient = useQueryClient();
 
-  // Load bookmarks when recording starts
-  useEffect(() => {
-    if (recording?.id) {
-      recordingNotes.getRecordingNotesByRecordingId(recording.id)
-        .then(notes => setRecordingBookmarks(notes.map(n => ({
-          id: n.id,
-          durationOffset: n.durationOffset,
-          title: n.title,
-        }))));
-    } else {
-      setRecordingBookmarks([]);
-    }
-  }, [recording?.id, recordingNotes]);
+  // Fetch bookmarks using useQuery
+  const { data: recordingBookmarks = [] } = useQuery({
+    queryKey: ['recordingBookmarks', recording?.id],
+    queryFn: async () => {
+      if (!recording?.id) return [];
+      const notes = await recordingNotes.getRecordingNotesByRecordingId(recording.id);
+      return notes.map(n => ({
+        id: n.id,
+        durationOffset: n.durationOffset,
+        title: n.title,
+      }));
+    },
+    enabled: !!recording?.id,
+  });
 
   const [recentBookmark, setRecentBookmark] = useState(false);
 
-  const createRecordingNote = useCallback(() => {
-    if (recording) {
+  // Create bookmark using useMutation
+  const createBookmarkMutation = useMutation({
+    mutationFn: async ({ recordingId, duration }: { recordingId: string; duration: number }) => {
+      recordingNotes.createRecordingNote(recordingId, duration);
+    },
+    onMutate: async ({ duration }) => {
+      // Optimistic update: add the new bookmark immediately
       const newBookmark = {
         id: crypto.getRandomValues(new Uint32Array(4)).join('-'),
-        durationOffset: recording.duration,
+        durationOffset: duration,
         title: '',
       };
-      setRecordingBookmarks(prev => [...prev, newBookmark]);
-      recordingNotes.createRecordingNote(recording.id, recording.duration);
+      queryClient.setQueryData(
+        ['recordingBookmarks', recording?.id],
+        (old: typeof recordingBookmarks) => [...(old ?? []), newBookmark]
+      );
+    },
+    onSettled: () => {
+      // Refetch to ensure data is up to date
+      queryClient.invalidateQueries({ queryKey: ['recordingBookmarks', recording?.id] });
+    },
+  });
+
+  const createRecordingNote = useCallback(() => {
+    if (recording) {
+      createBookmarkMutation.mutate({
+        recordingId: recording.id,
+        duration: recording.duration,
+      });
 
       // Visual feedback
       setRecentBookmark(true);
       setTimeout(() => setRecentBookmark(false), 500);
     }
-  }, [recordingNotes, recording]);
+  }, [recording, createBookmarkMutation]);
   return (
     <div className="recording-list-screen">
       <div className="container">
@@ -335,6 +356,8 @@ export default function RecordingListScreen() {
                       backgroundColor={theme.colors.background}
                       barColor={theme.colors.barColor}
                       bookmarkColor={theme.colors.bookmarkColor}
+                      waveformSamples={waveformSamples}
+                      playbackPosition={0}
                     />
                   ) : null}
                 </div>
@@ -355,7 +378,7 @@ export default function RecordingListScreen() {
                     }
                   >
                     {recordings.isStoppingToRecord ||
-                    recordings.isStartingToRecord ? (
+                      recordings.isStartingToRecord ? (
                       <ActivityIndicator />
                     ) : (
                       <Icon name={recordings.isRecording ? 'stop' : 'mic'} />

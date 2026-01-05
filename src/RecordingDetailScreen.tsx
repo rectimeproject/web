@@ -111,8 +111,8 @@ export default function RecordingDetailScreen() {
                     {canvasContainerDimensions !== null ? (
                       <PixiAnalyserNodeView
                         visualizationMode={{
-                          type: "verticalBars",
-                          barWidth: 20,
+                          type: "frequency",
+                          barCount: 64,
                         }}
                         canvasHeight={256}
                         canvasWidth={canvasContainerDimensions.width}
@@ -125,6 +125,8 @@ export default function RecordingDetailScreen() {
                         backgroundColor={theme.colors.background}
                         barColor={theme.colors.barColor}
                         bookmarkColor={theme.colors.bookmarkColor}
+                        waveformSamples={[]}
+                        playbackPosition={player.playing?.cursor ? player.playing.cursor * 1000 : 0}
                       />
                     ) : null}
                     {player.playing !== null &&
