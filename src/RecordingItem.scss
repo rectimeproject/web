@@ -1,6 +1,7 @@
 .recording-item {
   padding: $spacer;
+  transition: background-color 0.2s ease;
   &:hover {
-    background-color: $gray-100;
+    background-color: var(--item-hover-bg);
   }
 }

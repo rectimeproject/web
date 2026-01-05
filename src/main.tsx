@@ -1,4 +1,5 @@
 import './index.scss';
+import '@material-design-icons/font/index.css';
 import webrtcAdapter from 'webrtc-adapter';
 import ReactDOM from 'react-dom/client';
 import App from './App';

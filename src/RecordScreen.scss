@@ -4,10 +4,11 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
 
 .recording-list-screen {
   .canvas-container {
-    background-color: $gray-200;
+    background-color: var(--canvas-bg);
     height: $recording-list-screen-canvas-container-height;
     border-radius: $recording-list-screen-canvas-border-radius;
     margin-bottom: $spacer;
+    transition: background-color 0.3s ease;
     canvas {
       width: 100%;
     }
@@ -20,8 +21,9 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    transition: background-color 0.2s ease;
     &:hover {
-      background-color: $gray-300;
+      background-color: var(--button-hover-bg);
     }
 
     &.bookmark-created {
@@ -52,11 +54,12 @@ $record-button-contents-size: $record-button-size * 0.7 !default;
   width: $record-button-size;
   height: $record-button-size;
   border-radius: $record-button-size;
-  background-color: $gray-400;
+  background-color: var(--button-bg);
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  transition: background-color 0.3s ease;
   &-contents {
     background-color: $red;
     width: $record-button-contents-size;

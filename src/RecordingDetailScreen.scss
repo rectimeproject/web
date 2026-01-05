@@ -4,17 +4,20 @@ $recording-screen-play-button-size: 3rem !default;
   .canvas-container {
     canvas {
       width: 100%;
-      background-color: $gray-300;
+      background-color: var(--bg-tertiary);
       border-radius: 1rem;
+      transition: background-color 0.3s ease;
     }
     position: relative;
     .duration {
       border-radius: 1rem;
       padding: $spacer * 0.125 $spacer * 0.75;
       position: absolute;
-      background-color: $gray-500;
+      background-color: var(--duration-bg);
+      color: var(--duration-text);
       bottom: $spacer;
       right: $spacer;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
   }
 }
@@ -25,6 +28,12 @@ $recording-screen-play-button-size: 3rem !default;
   height: $recording-screen-play-button-size;
   display: flex;
   justify-content: center;
-  background-color: $gray-400;
+  background-color: var(--button-bg);
   align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: var(--button-hover-bg);
+  }
 }

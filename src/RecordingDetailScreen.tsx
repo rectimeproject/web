@@ -9,8 +9,10 @@ import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
 import Icon from "./Icon";
 import { filesize } from "filesize";
 import useRecordingNotes from "./useRecordingNotes";
+import useTheme from "./useTheme";
 
 export default function RecordingDetailScreen() {
+  const theme = useTheme();
   const recorderDatabase = useRecorderDatabase();
   const player = useRecordingPlayer();
   const recordingNotes = useRecordingNotes();
@@ -120,6 +122,9 @@ export default function RecordingDetailScreen() {
                         currentDuration={player.playing?.cursor ? player.playing.cursor * 1000 : 0}
                         totalDuration={recording?.duration}
                         onBookmarkClick={handleBookmarkClick}
+                        backgroundColor={theme.colors.background}
+                        barColor={theme.colors.barColor}
+                        bookmarkColor={theme.colors.bookmarkColor}
                       />
                     ) : null}
                     {player.playing !== null &&

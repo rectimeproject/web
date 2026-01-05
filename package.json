@@ -16,7 +16,7 @@
     "luxon": "^3.7.2",
     "opus-codec": "^0.0.86",
     "opus-codec-worker": "^0.0.86",
-    "pixi.js": "^7.4.3",
+    "pixi.js": "^8.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router": "^6.30.2",

@@ -395,10 +395,7 @@ export default class Recorder extends EventEmitter<{
           }
           if (result) {
             if (result.value.encoded === null) {
-              console.error(
-                'result from worker returned with no array buffer: %o',
-                result
-              );
+              // Encoder returned null - this is normal when there's not enough data for a full frame
               return;
             }
             this.emit('encoded', {
@@ -457,9 +454,8 @@ export default class Recorder extends EventEmitter<{
         stop: true,
       });
       try {
-        currentState.audioWorkletNode.disconnect(
-          this.#audioContext.destination
-        );
+        // Disconnect from all connections (worklet is connected to analyserNode, not destination)
+        currentState.audioWorkletNode.disconnect();
       } catch (reason) {
         console.error(
           'failed to disconnect audio worklet with error: %o',

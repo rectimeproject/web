@@ -7,6 +7,7 @@ import {
 } from 'react';
 import './App.css';
 import NavigationBar from './NavigationBar';
+import useTheme from './useTheme';
 
 export interface IDeviceDimensions {
   width: number;
@@ -18,6 +19,9 @@ export const DeviceDimensionsContext = createContext<IDeviceDimensions | null>(
 );
 
 function App({ children }: PropsWithChildren<{}>) {
+  // Initialize theme (sets data-theme attribute on document root)
+  useTheme();
+
   const [dimensions, setDimensions] = useState<IDeviceDimensions>({
     width: window.innerWidth,
     height: window.innerHeight,

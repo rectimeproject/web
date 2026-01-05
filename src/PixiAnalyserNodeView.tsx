@@ -8,16 +8,26 @@ interface IBookmark {
   title?: string;
 }
 
+type VisualizationMode =
+  | { type: 'frequency'; barCount?: number }
+  | { type: 'timeline'; samplesPerSecond?: number };
+
 interface Props {
   analyserNode: AnalyserNode<IAudioContext> | null;
   isPlaying: boolean;
   canvasWidth?: number | string;
   canvasHeight?: number | string;
-  visualizationMode: { type: 'verticalBars'; barWidth: number };
+  visualizationMode: VisualizationMode;
   bookmarks?: IBookmark[];
   currentDuration?: number;
   totalDuration?: number;
   onBookmarkClick?: (bookmark: IBookmark) => void;
+  backgroundColor?: number;
+  barColor?: number;
+  bookmarkColor?: number;
+  // Timeline-specific props
+  waveformSamples?: number[]; // Amplitude samples for timeline mode
+  playbackPosition?: number; // Current playback position in ms for timeline mode
 }
 
 export default function PixiAnalyserNodeView({
@@ -25,56 +35,74 @@ export default function PixiAnalyserNodeView({
   isPlaying,
   canvasWidth = '100%',
   canvasHeight = 256,
+  visualizationMode,
   bookmarks = [],
   currentDuration = 0,
   totalDuration,
   onBookmarkClick,
+  backgroundColor = 0xE9ECEF,
+  barColor = 0x495057,
+  bookmarkColor = 0xFF6B6B,
+  waveformSamples = [],
+  playbackPosition = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const barsRef = useRef<PIXI.Graphics[]>([]);
+  const barsContainerRef = useRef<PIXI.Container | null>(null);
   const markersContainerRef = useRef<PIXI.Container | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 256 });
 
-  // Initialize PixiJS app
+  // Initialize PixiJS app (PixiJS 8 async initialization)
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const app = new PIXI.Application({
-      width: dimensions.width,
-      height: dimensions.height,
-      backgroundColor: 0x000000,
-      antialias: true,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true,
-    });
+    let cleanedUp = false;
 
-    containerRef.current.appendChild(app.view as HTMLCanvasElement);
-    appRef.current = app;
+    (async () => {
+      const app = new PIXI.Application();
 
-    const barsContainer = new PIXI.Container();
-    const markersContainer = new PIXI.Container();
-    app.stage.addChild(barsContainer);
-    app.stage.addChild(markersContainer);
+      await app.init({
+        width: dimensions.width,
+        height: dimensions.height,
+        background: backgroundColor,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+      });
 
-    markersContainerRef.current = markersContainer;
+      if (cleanedUp) {
+        app.destroy(true, { children: true });
+        return;
+      }
 
-    // Create 64 bar graphics (reuse for performance)
-    const bars: PIXI.Graphics[] = [];
-    for (let i = 0; i < 64; i++) {
-      const bar = new PIXI.Graphics();
-      barsContainer.addChild(bar);
-      bars.push(bar);
-    }
-    barsRef.current = bars;
+      if (!containerRef.current) return;
+
+      containerRef.current.appendChild(app.canvas);
+      appRef.current = app;
+
+      const barsContainer = new PIXI.Container();
+      const markersContainer = new PIXI.Container();
+      app.stage.addChild(barsContainer);
+      app.stage.addChild(markersContainer);
+
+      barsContainerRef.current = barsContainer;
+      markersContainerRef.current = markersContainer;
+
+      // Bars will be created dynamically based on visualization mode
+      barsRef.current = [];
+    })();
 
     return () => {
-      app.destroy(true, { children: true });
-      appRef.current = null;
-      barsRef.current = [];
-      markersContainerRef.current = null;
+      cleanedUp = true;
+      if (appRef.current) {
+        appRef.current.destroy(true, { children: true });
+        appRef.current = null;
+        barsRef.current = [];
+        markersContainerRef.current = null;
+      }
     };
-  }, [dimensions]);
+  }, [dimensions, backgroundColor]);
 
   // Handle resize
   useEffect(() => {
@@ -93,44 +121,130 @@ export default function PixiAnalyserNodeView({
     return () => observer.disconnect();
   }, [canvasHeight]);
 
-  // Render frequency bars animation
+  // Dynamically create/update bars based on visualization mode
   useEffect(() => {
-    if (!analyserNode || !isPlaying || !barsRef.current.length) return;
+    if (!barsContainerRef.current) return;
 
-    analyserNode.fftSize = 2 ** 10;
-    analyserNode.minDecibels = -90;
-    analyserNode.maxDecibels = -10;
+    const container = barsContainerRef.current;
 
-    const data = new Uint8Array(analyserNode.frequencyBinCount);
-    const barWidth = dimensions.width / 64;
-    let frameId: number;
+    // Determine how many bars we need
+    let barCount = 64; // Default for frequency mode
+    if (visualizationMode.type === 'frequency') {
+      barCount = visualizationMode.barCount ?? 64;
+    } else if (visualizationMode.type === 'timeline') {
+      // For timeline, we need one bar per sample (up to a reasonable limit)
+      barCount = Math.min(waveformSamples.length, 2000);
+    }
 
-    const draw = () => {
-      analyserNode.getByteFrequencyData(data);
+    // Only recreate bars if the count changed
+    if (barsRef.current.length !== barCount) {
+      // Clear existing bars
+      barsRef.current.forEach(bar => {
+        container.removeChild(bar);
+        bar.destroy();
+      });
+      barsRef.current = [];
 
-      barsRef.current.forEach((bar, i) => {
-        const height = Math.max(data[i] ?? 0, 10);
+      // Create new bars
+      const bars: PIXI.Graphics[] = [];
+      for (let i = 0; i < barCount; i++) {
+        const bar = new PIXI.Graphics();
+        container.addChild(bar);
+        bars.push(bar);
+      }
+      barsRef.current = bars;
+    }
+  }, [visualizationMode, waveformSamples.length]);
+
+  // Render visualization based on mode
+  useEffect(() => {
+    if (visualizationMode.type === 'frequency') {
+      // Frequency mode: real-time frequency bars
+      if (!analyserNode || !isPlaying || !barsRef.current.length) return;
+
+      analyserNode.fftSize = 2 ** 10;
+      analyserNode.minDecibels = -90;
+      analyserNode.maxDecibels = -10;
+
+      const data = new Uint8Array(analyserNode.frequencyBinCount);
+      const barCount = visualizationMode.barCount ?? 64;
+      const barWidth = dimensions.width / barCount;
+      let frameId: number;
+
+      const draw = () => {
+        analyserNode.getByteFrequencyData(data);
+
+        barsRef.current.forEach((bar, i) => {
+          const height = Math.max(data[i] ?? 0, 10);
+          const x = i * barWidth;
+          const y = dimensions.height / 2 - height / 2;
+
+          bar.clear();
+          bar.rect(x, y, barWidth - 1, height);
+          bar.fill(barColor);
+        });
+
+        frameId = requestAnimationFrame(draw);
+      };
+
+      frameId = requestAnimationFrame(draw);
+
+      return () => {
+        cancelAnimationFrame(frameId);
+        barsRef.current.forEach(bar => bar.clear());
+      };
+    } else if (visualizationMode.type === 'timeline') {
+      // Timeline mode: render waveform from samples
+      if (!barsRef.current.length || waveformSamples.length === 0) return;
+
+      const totalDurationMs = totalDuration ?? currentDuration;
+      if (!totalDurationMs) return;
+
+      // Calculate bar width based on duration and samples
+      const barWidth = Math.max(2, dimensions.width / waveformSamples.length);
+
+      // Render waveform bars
+      barsRef.current.forEach(bar => bar.clear());
+
+      waveformSamples.forEach((amplitude, i) => {
+        if (i >= barsRef.current.length) return;
+
+        const bar = barsRef.current[i];
         const x = i * barWidth;
+        const height = Math.max((amplitude / 255) * dimensions.height * 0.8, 4);
         const y = dimensions.height / 2 - height / 2;
 
         bar.clear();
-        bar.beginFill(0x495057); // #495057 gray
-        bar.drawRect(x, y, barWidth - 1, height);
-        bar.endFill();
+        bar.rect(x, y, Math.max(barWidth - 1, 1), height);
+        bar.fill(barColor);
       });
 
-      frameId = requestAnimationFrame(draw);
-    };
+      // Draw playback position indicator
+      if (playbackPosition > 0 && totalDurationMs > 0) {
+        const positionX = (playbackPosition / totalDurationMs) * dimensions.width;
+        const indicator = barsRef.current[0]; // Reuse first bar for indicator
 
-    frameId = requestAnimationFrame(draw);
+        if (indicator) {
+          indicator.clear();
+          indicator.rect(positionX - 1, 0, 2, dimensions.height);
+          indicator.fill(bookmarkColor);
+        }
+      }
+    }
+  }, [
+    visualizationMode,
+    analyserNode,
+    isPlaying,
+    dimensions,
+    barColor,
+    waveformSamples,
+    playbackPosition,
+    totalDuration,
+    currentDuration,
+    bookmarkColor,
+  ]);
 
-    return () => {
-      cancelAnimationFrame(frameId);
-      barsRef.current.forEach(bar => bar.clear());
-    };
-  }, [analyserNode, isPlaying, dimensions]);
-
-  // Render bookmark markers
+  // Render bookmark markers (Samsung Recorder style - minimalist, mobile-optimized)
   useEffect(() => {
     if (!markersContainerRef.current) return;
 
@@ -140,27 +254,69 @@ export default function PixiAnalyserNodeView({
     const duration = totalDuration ?? currentDuration;
     if (!duration) return;
 
+    const TOUCH_TARGET_WIDTH = 48; // 48px touch target (Material Design guideline)
+    const LINE_WIDTH = 2;
+
     bookmarks.forEach((bookmark) => {
       const x = (bookmark.durationOffset / duration) * dimensions.width;
 
-      const marker = new PIXI.Graphics();
-      marker.lineStyle(2, 0xFF6B6B); // Red
-      marker.moveTo(x, 0);
-      marker.lineTo(x, dimensions.height);
-      marker.beginFill(0xFF6B6B);
-      marker.drawCircle(x, 10, 6);
-      marker.endFill();
+      // Create container for this bookmark
+      const markerContainer = new PIXI.Container();
+      markerContainer.x = x;
 
-      marker.interactive = true;
-      marker.cursor = 'pointer';
-      marker.on('click', () => onBookmarkClick?.(bookmark));
-      marker.on('tap', () => onBookmarkClick?.(bookmark));
-      marker.on('pointerover', () => { marker.alpha = 0.7; });
-      marker.on('pointerout', () => { marker.alpha = 1; });
+      // Visual line (simple vertical line, no decorations)
+      const line = new PIXI.Graphics();
+      line.moveTo(0, 0);
+      line.lineTo(0, dimensions.height);
+      line.stroke({ width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85 });
 
-      container.addChild(marker);
+      // Hit area (wider for touch devices, invisible)
+      const hitArea = new PIXI.Graphics();
+      hitArea.rect(-TOUCH_TARGET_WIDTH / 2, 0, TOUCH_TARGET_WIDTH, dimensions.height);
+      hitArea.fill({ color: 0x000000, alpha: 0 });
+
+      hitArea.interactive = true;
+      hitArea.cursor = 'pointer';
+      hitArea.hitArea = new PIXI.Rectangle(
+        -TOUCH_TARGET_WIDTH / 2,
+        0,
+        TOUCH_TARGET_WIDTH,
+        dimensions.height
+      );
+
+      // Event handlers
+      hitArea.on('click', () => onBookmarkClick?.(bookmark));
+      hitArea.on('tap', () => onBookmarkClick?.(bookmark));
+
+      // Visual feedback - brighten line on hover/touch
+      hitArea.on('pointerover', () => {
+        line.alpha = 1;
+        line.clear();
+        line.moveTo(0, 0);
+        line.lineTo(0, dimensions.height);
+        line.stroke({ width: LINE_WIDTH + 1, color: bookmarkColor, alpha: 1 });
+      });
+
+      hitArea.on('pointerout', () => {
+        line.clear();
+        line.moveTo(0, 0);
+        line.lineTo(0, dimensions.height);
+        line.stroke({ width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85 });
+      });
+
+      hitArea.on('pointerdown', () => {
+        line.alpha = 0.6;
+      });
+
+      hitArea.on('pointerup', () => {
+        line.alpha = 1;
+      });
+
+      markerContainer.addChild(line);
+      markerContainer.addChild(hitArea);
+      container.addChild(markerContainer);
     });
-  }, [bookmarks, dimensions, currentDuration, totalDuration, onBookmarkClick]);
+  }, [bookmarks, dimensions, currentDuration, totalDuration, onBookmarkClick, bookmarkColor]);
 
   return (
     <div

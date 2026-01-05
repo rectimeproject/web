@@ -1,6 +1,60 @@
-@import '../node_modules/bootstrap/scss/bootstrap-reboot.scss';
-@import '../node_modules/bootstrap/scss/bootstrap.scss';
-@import '../node_modules/@material-design-icons/font/index.scss';
+@import 'bootstrap/scss/bootstrap-reboot.scss';
+@import 'bootstrap/scss/bootstrap.scss';
+
+// Theme variables
+:root {
+  // Light theme (default)
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --border-color: #dee2e6;
+  --canvas-bg: #e9ecef;
+  --button-bg: #6c757d;
+  --button-hover-bg: #dee2e6;
+  --item-hover-bg: #f8f9fa;
+  --duration-bg: #6c757d;
+  --duration-text: #ffffff;
+}
+
+[data-theme='dark'] {
+  // Dark theme
+  --bg-primary: #212529;
+  --bg-secondary: #343a40;
+  --bg-tertiary: #495057;
+  --text-primary: #f8f9fa;
+  --text-secondary: #adb5bd;
+  --border-color: #495057;
+  --canvas-bg: #343a40;
+  --button-bg: #495057;
+  --button-hover-bg: #343a40;
+  --item-hover-bg: #343a40;
+  --duration-bg: #495057;
+  --duration-text: #f8f9fa;
+
+  // Override Bootstrap variables for dark theme
+  color-scheme: dark;
+}
+
+// Apply theme variables
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container,
+.card,
+.modal-content {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.recording-list-screen .canvas-container {
+  background-color: var(--canvas-bg);
+  transition: background-color 0.3s ease;
+}
 
 // components
 @import './RecordingItem.scss';

@@ -27,8 +27,10 @@ import useAppSettings from './useAppSettings';
 import useDebounce from './useDebounce';
 import useRecordingNotes from './useRecordingNotes';
 import useDebugAudioVisualizer from './useDebugAudioVisualizer';
+import useTheme from './useTheme';
 
 export default function RecordingListScreen() {
+  const theme = useTheme();
   const recordings = useRecordings();
   const recorderContext = useRecorderContext();
   const db = useRecorderDatabase();
@@ -55,10 +57,65 @@ export default function RecordingListScreen() {
   const visualizationMode = useMemo(
     () =>
       ({
-        barWidth: 10,
-        type: 'verticalBars',
+        type: 'timeline',
+        samplesPerSecond: 20,
       } as const),
     []
+  );
+
+  // Waveform data for timeline visualization
+  const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
+
+  // Capture waveform data during recording
+  useEffect(() => {
+    if (!recording || !analyserNodeRef.current) {
+      setWaveformSamples([]);
+      return;
+    }
+
+    const analyserNode = analyserNodeRef.current;
+    analyserNode.fftSize = 2 ** 10;
+    analyserNode.minDecibels = -90;
+    analyserNode.maxDecibels = -10;
+
+    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+    const samplesPerSecond = 20; // Sample 20 times per second
+    const intervalMs = 1000 / samplesPerSecond;
+
+    const captureInterval = setInterval(() => {
+      analyserNode.getByteFrequencyData(dataArray);
+
+      // Calculate average amplitude across all frequencies
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+
+      setWaveformSamples(prev => [...prev, average]);
+    }, intervalMs);
+
+    return () => {
+      clearInterval(captureInterval);
+    };
+  }, [recording, analyserNodeRef]);
+  const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const onCanvasContainerElementMount = useCallback(
+    (current: HTMLDivElement | null) => {
+      if (current !== null) {
+        setCanvasContainerDimensions({
+          width: current.offsetWidth,
+          height: current.offsetHeight,
+        });
+      } else {
+        setCanvasContainerDimensions(null);
+      }
+    },
+    [setCanvasContainerDimensions]
   );
   useEffect(() => {
     // if (!db.isGettingRecordings) {
@@ -258,20 +315,28 @@ export default function RecordingListScreen() {
           <div className="d-flex col-md-8">
             <div className="d-flex flex-column flex-fill">
               <div className="flex-fill">
-                <div className="canvas-container d-flex justify-content-end">
-                  <PixiAnalyserNodeView
-                    canvasWidth="100%"
-                    canvasHeight={256}
-                    visualizationMode={visualizationMode}
-                    isPlaying
-                    analyserNode={
-                      recording === null
-                        ? debugAudioVisualizer.analyserNode
-                        : analyserNodeRef.current
-                    }
-                    bookmarks={recordingBookmarks}
-                    currentDuration={recording?.duration ?? 0}
-                  />
+                <div
+                  className="canvas-container d-flex justify-content-end flex-fill"
+                  ref={onCanvasContainerElementMount}
+                >
+                  {canvasContainerDimensions !== null ? (
+                    <PixiAnalyserNodeView
+                      canvasWidth={canvasContainerDimensions.width}
+                      canvasHeight={256}
+                      visualizationMode={visualizationMode}
+                      isPlaying
+                      analyserNode={
+                        recording === null
+                          ? debugAudioVisualizer.analyserNode
+                          : analyserNodeRef.current
+                      }
+                      bookmarks={recordingBookmarks}
+                      currentDuration={recording?.duration ?? 0}
+                      backgroundColor={theme.colors.background}
+                      barColor={theme.colors.barColor}
+                      bookmarkColor={theme.colors.bookmarkColor}
+                    />
+                  ) : null}
                 </div>
               </div>
               <div className="d-flex align-items-center">
