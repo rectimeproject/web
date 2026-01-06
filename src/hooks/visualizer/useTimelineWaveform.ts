@@ -106,8 +106,11 @@ export function useTimelineWaveform({
       // Apply logarithmic scaling for better visual representation
       const normalizedAmp = Math.min(amplitude / 100, 1);
       const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
-      const height = Math.max(boostedAmp * dimensions.height * 0.8, 4);
-      const y = dimensions.height / 2 - height / 2;
+      // Use the full 80% height range for better visibility
+      const maxBarHeight = dimensions.height * 0.8;
+      const height = Math.max(boostedAmp * maxBarHeight, 4);
+      // Center vertically in the canvas
+      const y = (dimensions.height - height) / 2;
 
       bar.clear();
 

@@ -57,11 +57,12 @@ export default function FrequencyVisualizer({
             barsRef.current.forEach((bar, i) => {
               // Scale to 80% of canvas height with minimum 4px
               const rawHeight = data[i] ?? 0;
-              const normalizedHeight =
-                (rawHeight / 255) * dimensions.height * 0.8;
-              const height = Math.max(normalizedHeight, 4);
+              // Use the full 80% height range for better visibility
+              const maxBarHeight = dimensions.height * 0.8;
+              const height = Math.max((rawHeight / 255) * maxBarHeight, 4);
               const x = i * barWidth;
-              const y = dimensions.height / 2 - height / 2;
+              // Center vertically in the canvas
+              const y = (dimensions.height - height) / 2;
 
               bar.clear();
               bar.rect(x, y, barWidth - 1, height);

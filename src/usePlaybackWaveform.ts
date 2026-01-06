@@ -28,34 +28,45 @@ export default function usePlaybackWaveform(
     let sampleCount = 0;
     const maxSamples = 100; // Keep a rolling window of samples for timeline
 
-    const captureWaveform = () => {
+    // Throttle updates to ~20fps for smoother marker movement
+    let lastUpdateTime = 0;
+    const updateInterval = 1000 / 20; // 50ms between updates
+
+    const captureWaveform = (timestamp: number) => {
       if (!isPlaying) {
         return;
       }
 
-      // Use time domain data for actual waveform amplitude
-      analyserNode.getByteTimeDomainData(dataArray);
+      // Throttle updates to reduce re-render jank
+      const timeSinceLastUpdate = timestamp - lastUpdateTime;
+      if (timeSinceLastUpdate >= updateInterval) {
+        lastUpdateTime = timestamp;
 
-      // Calculate RMS amplitude
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const normalized = (dataArray[i] - 128) / 128;
-        sum += normalized * normalized;
+        // Use time domain data for actual waveform amplitude
+        analyserNode.getByteTimeDomainData(dataArray);
+
+        // Calculate RMS amplitude
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const normalized = (dataArray[i] - 128) / 128;
+          sum += normalized * normalized;
+        }
+        const rms = Math.sqrt(sum / bufferLength);
+
+        // Convert to 0-100 range for visualization
+        const amplitude = Math.min(100, rms * 200);
+
+        setWaveformSamples(prev => {
+          const newSamples = [...prev, amplitude];
+          // Keep only the most recent samples for a rolling window
+          return newSamples.length > maxSamples
+            ? newSamples.slice(-maxSamples)
+            : newSamples;
+        });
+
+        sampleCount++;
       }
-      const rms = Math.sqrt(sum / bufferLength);
 
-      // Convert to 0-100 range for visualization
-      const amplitude = Math.min(100, rms * 200);
-
-      setWaveformSamples(prev => {
-        const newSamples = [...prev, amplitude];
-        // Keep only the most recent samples for a rolling window
-        return newSamples.length > maxSamples
-          ? newSamples.slice(-maxSamples)
-          : newSamples;
-      });
-
-      sampleCount++;
       animationFrameId = requestAnimationFrame(captureWaveform);
     };
 
