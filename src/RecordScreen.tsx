@@ -49,7 +49,7 @@ export default function RecordingListScreen() {
       db.getRecordingByEncoderId(recordings.recording.encoderId);
     }
   }, [db, recordings]);
-  const analyserNodeRef = useRef<AnalyserNode<IAudioContext> | null>(null);
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode<IAudioContext> | null>(null);
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
@@ -60,7 +60,7 @@ export default function RecordingListScreen() {
     ({
       type: 'timeline',
       samplesPerSecond: 20,
-      timeWindowSeconds: 10, // Show only last 10 seconds
+      timeWindowSeconds: 10, // Show last 10 seconds (scrolling window)
     } as const),
     []
   );
@@ -74,12 +74,18 @@ export default function RecordingListScreen() {
 
   // Capture waveform data during recording
   useEffect(() => {
-    if (!recording || !analyserNodeRef.current) {
+    console.log('[RecordScreen] Waveform capture effect triggered', {
+      isRecording: recordings.isRecording,
+      hasAnalyserNode: !!analyserNode
+    });
+
+    if (!recordings.isRecording || !analyserNode) {
+      console.log('[RecordScreen] Clearing waveform samples - not recording or no analyser');
       setWaveformSamples([]);
       return;
     }
 
-    const analyserNode = analyserNodeRef.current;
+    console.log('[RecordScreen] Starting waveform capture');
     analyserNode.fftSize = 2 ** 11; // Higher resolution for better waveform
     analyserNode.smoothingTimeConstant = 0.3; // Smooth out the waveform
 
@@ -87,6 +93,7 @@ export default function RecordingListScreen() {
     const samplesPerSecond = 20; // Sample 20 times per second
     const intervalMs = 1000 / samplesPerSecond;
 
+    let sampleCount = 0;
     const captureInterval = setInterval(() => {
       // Use time domain data for actual waveform amplitude
       analyserNode.getByteTimeDomainData(dataArray);
@@ -100,13 +107,19 @@ export default function RecordingListScreen() {
       const rms = Math.sqrt(sumSquares / dataArray.length);
       const amplitude = rms * 255; // Scale back to 0-255 range
 
+      sampleCount++;
+      if (sampleCount % 20 === 0) { // Log every second
+        console.log(`[RecordScreen] Captured ${sampleCount} samples, latest amplitude: ${amplitude.toFixed(2)}`);
+      }
+
       setWaveformSamples(prev => [...prev, amplitude]);
     }, intervalMs);
 
     return () => {
+      console.log(`[RecordScreen] Stopping waveform capture, total samples: ${sampleCount}`);
       clearInterval(captureInterval);
     };
-  }, [recording, analyserNodeRef]);
+  }, [recordings.isRecording, analyserNode]);
   const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
     width: number;
     height: number;
@@ -261,11 +274,16 @@ export default function RecordingListScreen() {
   useEffect(() => {
     recorderContext.recorder.then((rec) => {
       const state = rec?.currentState() ?? null;
-      if (state === null || !('analyserNode' in state) || !state.analyserNode)
+      console.log('[RecordScreen] Recorder state:', state?.type, 'has analyserNode:', !!(state && 'analyserNode' in state && state.analyserNode));
+
+      if (state === null || !('analyserNode' in state) || !state.analyserNode) {
+        setAnalyserNode(null);
         return;
-      analyserNodeRef.current = state.analyserNode;
+      }
+      console.log('[RecordScreen] Setting analyserNode from recorder state');
+      setAnalyserNode(state.analyserNode);
     });
-  }, [recording, recorderContext, analyserNodeRef]);
+  }, [recordings.isRecording, recordings.recording, recorderContext]);
   /**
    * enumerate devices
    */
@@ -341,24 +359,34 @@ export default function RecordingListScreen() {
                   ref={onCanvasContainerElementMount}
                 >
                   {canvasContainerDimensions !== null ? (
-                    <PixiAnalyserNodeView
-                      canvasWidth={canvasContainerDimensions.width}
-                      canvasHeight={256}
-                      visualizationMode={visualizationMode}
-                      isPlaying
-                      analyserNode={
-                        recording === null
-                          ? debugAudioVisualizer.analyserNode
-                          : analyserNodeRef.current
-                      }
-                      bookmarks={recordingBookmarks}
-                      currentDuration={recording?.duration ?? 0}
-                      backgroundColor={theme.colors.background}
-                      barColor={theme.colors.barColor}
-                      bookmarkColor={theme.colors.bookmarkColor}
-                      waveformSamples={waveformSamples}
-                      playbackPosition={0}
-                    />
+                      <>
+                        {console.log('[RecordScreen] Rendering PixiAnalyserNodeView', {
+                          canvasWidth: canvasContainerDimensions.width,
+                          canvasHeight: 256,
+                          isRecording: recordings.isRecording,
+                          hasAnalyserNode: !!analyserNode,
+                          waveformSamplesLength: waveformSamples.length,
+                          visualizationMode,
+                        })}
+                        <PixiAnalyserNodeView
+                          canvasWidth={canvasContainerDimensions.width}
+                          canvasHeight={256}
+                          visualizationMode={visualizationMode}
+                          isPlaying
+                          analyserNode={
+                            recordings.isRecording
+                              ? analyserNode
+                              : debugAudioVisualizer.analyserNode
+                          }
+                          bookmarks={recordingBookmarks}
+                          currentDuration={recording?.duration ?? 0}
+                          backgroundColor={theme.colors.background}
+                          barColor={theme.colors.barColor}
+                          bookmarkColor={theme.colors.bookmarkColor}
+                          waveformSamples={waveformSamples}
+                          playbackPosition={0}
+                        />
+                      </>
                   ) : null}
                 </div>
               </div>

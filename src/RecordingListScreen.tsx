@@ -1,29 +1,48 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import useRecorderDatabase from './useRecorderDatabase';
 import { DateTime } from 'luxon';
 import Icon from './Icon';
 import secondsToHumanReadable from './secondsToHumanReadable';
 import { useNavigate } from 'react-router';
 import ActivityIndicator from './ActivityIndicator';
 import { Link } from 'react-router-dom';
+import { useRecordingsInfiniteQuery } from './hooks/queries/useRecordingsInfiniteQuery';
+import { useUpdateRecordingMutation } from './hooks/queries/useRecordingMutations';
 
 export default function RecordingListScreen() {
-  const db = useRecorderDatabase();
   const navigate = useNavigate();
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useRecordingsInfiniteQuery(10);
+
+  const updateRecordingMutation = useUpdateRecordingMutation();
+
   const openSpecificRecordingPage = useCallback(
     (recordingId: string) => {
       navigate(`/recording/${recordingId}`);
     },
     [navigate]
   );
+
   const [newRecordingNames, setNewRecordingNames] = useState(
     new Map<string, string>()
   );
-  const recordings = useMemo(
+
+  const recordings = useMemo(() => {
+    if (!data) return [];
+    return data.pages.flatMap((page) => page.recordings);
+  }, [data]);
+
+  const recordingsWithHandlers = useMemo(
     () =>
-      db.recordings.map((r) => ({
+      recordings.map((r) => ({
         ...r,
-        originalValue: r,
         onChangeNewRecordingName: (e: ChangeEvent<HTMLInputElement>) => {
           const newName = e.target.value;
           setNewRecordingNames(
@@ -33,32 +52,35 @@ export default function RecordingListScreen() {
         },
         onClickPlay: () => openSpecificRecordingPage(r.id),
       })),
-    [openSpecificRecordingPage, setNewRecordingNames, db.recordings]
+    [openSpecificRecordingPage, setNewRecordingNames, recordings]
   );
+
+  // Handle name updates with debouncing
   useEffect(() => {
     for (const [id, name] of newRecordingNames) {
-      if (db.updatingRecordingIds.includes(id)) {
-        continue;
-      }
       const recording = recordings.find((r) => r.id === id);
       if (!recording) {
-        console.error('failed to update recording: %o', recording);
+        console.error('failed to find recording: %s', id);
         continue;
       }
       if (recording.name === name) {
         continue;
       }
-      db.updateRecording({
-        ...recording.originalValue,
-        name,
-      });
+
+      // Debounce: update after user stops typing
+      const timeoutId = setTimeout(() => {
+        updateRecordingMutation.mutate({
+          ...recording,
+          name,
+        });
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [db, recordings, newRecordingNames]);
-  useEffect(() => {
-    if (!db.hasLoadedInitialRecordings) db.getRecordings();
-  }, [db]);
+  }, [recordings, newRecordingNames, updateRecordingMutation]);
+
   const onScroll = useCallback(() => {
-    if (!document.scrollingElement) {
+    if (!document.scrollingElement || !hasNextPage || isFetchingNextPage) {
       return;
     }
     const pct =
@@ -68,19 +90,57 @@ export default function RecordingListScreen() {
     if (pct < 0.9) {
       return;
     }
-    db.getMoreRecordings();
-  }, [db]);
+    fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
   useEffect(() => {
     window.addEventListener('scroll', onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll);
     };
   }, [onScroll]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container recording-list-screen">
+        <div className="row">
+          <div className="col-lg-12">
+            <div className="text-center my-4">
+              <ActivityIndicator />
+              <div className="mt-2">Loading recordings...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="container recording-list-screen">
+        <div className="row">
+          <div className="col-lg-12">
+            <div className="text-center my-4">
+              <div className="alert alert-danger">
+                Failed to load recordings: {error?.message ?? 'Unknown error'}
+              </div>
+              <button className="btn btn-primary" onClick={() => refetch()}>
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container recording-list-screen">
       <div className="row">
         <div className="col-lg-12">
-          {!recordings.length ? (
+          {!recordingsWithHandlers.length ? (
             <>
               <div className="text-center">
                 No recordings yet. <Link to="/">Record</Link> something!
@@ -88,7 +148,7 @@ export default function RecordingListScreen() {
             </>
           ) : (
             <>
-              {recordings.map((r) => (
+              {recordingsWithHandlers.map((r) => (
                 <div className="d-flex recording" key={r.id}>
                   <div className="flex-fill overflow-hidden">
                     <div>
@@ -104,12 +164,13 @@ export default function RecordingListScreen() {
                           style={{
                             border: 'none',
                           }}
+                          disabled={updateRecordingMutation.isPending}
                         />
                       </h4>
                     </div>
                   </div>
                   <div>
-                    {db.updatingRecordingIds.includes(r.id) ? (
+                    {updateRecordingMutation.isPending ? (
                       <ActivityIndicator />
                     ) : (
                       <div className="play-arrow" onClick={r.onClickPlay}>
@@ -119,11 +180,23 @@ export default function RecordingListScreen() {
                   </div>
                 </div>
               ))}
-              {db.isFinished ? (
-                <>
-                  <div className="text-center my-4">No more results.</div>
-                </>
-              ) : null}
+              {isFetchingNextPage ? (
+                <div className="text-center my-4">
+                  <ActivityIndicator />
+                  <div className="mt-2">Loading more...</div>
+                </div>
+              ) : hasNextPage ? (
+                <div className="text-center my-4">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => fetchNextPage()}
+                  >
+                    Load More
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center my-4">No more results.</div>
+              )}
             </>
           )}
         </div>

@@ -16,9 +16,22 @@ import RecordingDetailScreen from "./RecordingDetailScreen";
 import RecordScreen from "./RecordScreen";
 import RecordingListScreen from "./RecordingListScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 async function render() {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes - recordings don't change frequently
+        gcTime: 1000 * 60 * 30, // 30 minutes cache time
+        retry: 1, // Single retry for IndexedDB queries
+        refetchOnWindowFocus: false, // Don't refetch on focus (could interrupt recording)
+      },
+      mutations: {
+        retry: 0, // Don't retry mutations automatically
+      },
+    },
+  });
 
   console.log("webrtc adapter: %o", webrtcAdapter);
 
@@ -50,6 +63,7 @@ async function render() {
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
+        <ReactQueryDevtools initialIsOpen={false} />
         <RecorderDatabaseContext.Provider value={recorderDatabase}>
           <RecorderContext.Provider value={recorderContext}>
             <BrowserRouter>

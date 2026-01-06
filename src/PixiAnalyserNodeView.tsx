@@ -52,6 +52,7 @@ export default function PixiAnalyserNodeView({
   const barsContainerRef = useRef<PIXI.Container | null>(null);
   const markersContainerRef = useRef<PIXI.Container | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 256 });
+  const [isPixiReady, setIsPixiReady] = useState(false);
 
   // Initialize PixiJS app (PixiJS 8 async initialization)
   useEffect(() => {
@@ -91,10 +92,15 @@ export default function PixiAnalyserNodeView({
 
       // Bars will be created dynamically based on visualization mode
       barsRef.current = [];
+
+      // Signal that PixiJS is ready
+      console.log('[PixiAnalyserNodeView] PixiJS initialized, ready to create bars');
+      setIsPixiReady(true);
     })();
 
     return () => {
       cleanedUp = true;
+      setIsPixiReady(false);
       if (appRef.current) {
         appRef.current.destroy(true, { children: true });
         appRef.current = null;
@@ -124,7 +130,16 @@ export default function PixiAnalyserNodeView({
 
   // Dynamically create/update bars based on visualization mode
   useEffect(() => {
-    if (!barsContainerRef.current) return;
+    console.log('[PixiAnalyserNodeView] Bar creation effect', {
+      isPixiReady,
+      hasBarsContainer: !!barsContainerRef.current,
+      visualizationMode: visualizationMode.type,
+    });
+
+    if (!isPixiReady || !barsContainerRef.current) {
+      console.log('[PixiAnalyserNodeView] Skipping bar creation - PixiJS not ready yet');
+      return;
+    }
 
     const container = barsContainerRef.current;
 
@@ -156,11 +171,20 @@ export default function PixiAnalyserNodeView({
         bars.push(bar);
       }
       barsRef.current = bars;
+      console.log(`[PixiAnalyserNodeView] Created ${barCount} bars for ${visualizationMode.type} mode`);
     }
-  }, [visualizationMode]);
+  }, [visualizationMode, isPixiReady]);
 
   // Render visualization based on mode
   useEffect(() => {
+    console.log('[PixiAnalyserNodeView] Render effect triggered', {
+      mode: visualizationMode.type,
+      waveformSamplesLength: waveformSamples.length,
+      barsLength: barsRef.current.length,
+      dimensionsWidth: dimensions.width,
+      dimensionsHeight: dimensions.height,
+    });
+
     if (visualizationMode.type === "frequency") {
       // Frequency mode: real-time frequency bars
       if (!analyserNode || !isPlaying || !barsRef.current.length) return;
@@ -197,36 +221,63 @@ export default function PixiAnalyserNodeView({
         barsRef.current.forEach((bar) => bar.clear());
       };
     } else if (visualizationMode.type === "timeline") {
-      // Timeline mode: render scrolling waveform window
-      if (!barsRef.current.length || waveformSamples.length === 0) return;
+      // Timeline mode: render waveform over time
+      console.log('[PixiAnalyserNodeView] Timeline mode rendering', {
+        barsLength: barsRef.current.length,
+        samplesLength: waveformSamples.length,
+      });
+
+      if (!barsRef.current.length) {
+        console.log('[PixiAnalyserNodeView] No bars created yet');
+        return;
+      }
+
+      if (waveformSamples.length === 0) {
+        console.log('[PixiAnalyserNodeView] No waveform samples, clearing bars');
+        // Clear all bars and return
+        barsRef.current.forEach((bar) => bar.clear());
+        return;
+      }
 
       const samplesPerSecond = visualizationMode.samplesPerSecond ?? 20;
-      const timeWindowSeconds = visualizationMode.timeWindowSeconds ?? 10;
-      const maxSamplesInWindow = samplesPerSecond * timeWindowSeconds;
+      const timeWindowSeconds = visualizationMode.timeWindowSeconds;
 
-      // Get the last N samples that fit in the time window
+      // If timeWindowSeconds is undefined, show all samples
+      // Otherwise show only the last N seconds
+      const maxSamplesInWindow = timeWindowSeconds
+        ? samplesPerSecond * timeWindowSeconds
+        : waveformSamples.length;
+
+      // Get the samples to display
       const startIndex = Math.max(
         0,
         waveformSamples.length - maxSamplesInWindow
       );
       const visibleSamples = waveformSamples.slice(startIndex);
 
-      // Calculate bar width with spacing for visual clarity
-      const barSpacing = 2;
+      // Calculate bar width - fit all visible samples into canvas width
+      const barSpacing = 1;
       const barWidth = Math.max(
-        3,
-        dimensions.width / maxSamplesInWindow - barSpacing
+        2,
+        (dimensions.width / visibleSamples.length) - barSpacing
       );
 
       // Clear all bars first
       barsRef.current.forEach((bar) => bar.clear());
 
-      // Render visible waveform bars
-      for (let i = 0; i < visibleSamples.length; i++) {
+      // Render visible waveform bars (only as many as we have bars for)
+      const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
+
+      console.log('[PixiAnalyserNodeView] Rendering waveform', {
+        visibleSamplesLength: visibleSamples.length,
+        barsLength: barsRef.current.length,
+        samplesToRender,
+        barWidth,
+        canvasWidth: dimensions.width,
+      });
+
+      for (let i = 0; i < samplesToRender; i++) {
         const amplitude = visibleSamples[i] ?? null;
-
-        if (i >= barsRef.current.length) return;
-
         const bar = barsRef.current[i] ?? null;
 
         if (bar === null || amplitude === null) {
