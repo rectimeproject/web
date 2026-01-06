@@ -5,7 +5,7 @@ import "@material-design-icons/font/index.css";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-import {StrictMode} from "react";
+import {StrictMode, Suspense, lazy} from "react";
 import {RecorderContext, IRecorderContextValue} from "./RecorderContext";
 import {Opus} from "./Recorder";
 import {AudioContext} from "standardized-audio-context";
@@ -13,12 +13,15 @@ import RecorderWithDatabase from "./RecorderWithDatabase";
 import RecorderDatabase from "./RecorderDatabase";
 import RecorderDatabaseContext from "./RecorderDatabaseContext";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
-import RecordingDetailScreen from "./RecordingDetailScreen";
-import RecordScreen from "./RecordScreen";
-import RecordingListScreen from "./RecordingListScreen";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {ReactQueryDevtools} from "@tanstack/react-query-devtools";
 import {SpeedInsights} from "@vercel/speed-insights/react";
+import ActivityIndicator from "./ActivityIndicator";
+
+// Lazy load route components
+const RecordingDetailScreen = lazy(() => import("./RecordingDetailScreen"));
+const RecordScreen = lazy(() => import("./RecordScreen"));
+const RecordingListScreen = lazy(() => import("./RecordingListScreen"));
 async function render() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -70,22 +73,30 @@ async function render() {
           <RecorderContext.Provider value={recorderContext}>
             <BrowserRouter>
               <App>
-                <Routes>
-                  <Route path="/">
-                    <Route
-                      path="recording/:recordingId"
-                      Component={RecordingDetailScreen}
-                    />
-                    <Route
-                      index
-                      Component={RecordScreen}
-                    />
-                    <Route
-                      path="recordings"
-                      Component={RecordingListScreen}
-                    />
-                  </Route>
-                </Routes>
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center min-h-screen">
+                      <ActivityIndicator width={50} />
+                    </div>
+                  }
+                >
+                  <Routes>
+                    <Route path="/">
+                      <Route
+                        path="recording/:recordingId"
+                        Component={RecordingDetailScreen}
+                      />
+                      <Route
+                        index
+                        Component={RecordScreen}
+                      />
+                      <Route
+                        path="recordings"
+                        Component={RecordingListScreen}
+                      />
+                    </Route>
+                  </Routes>
+                </Suspense>
               </App>
             </BrowserRouter>
           </RecorderContext.Provider>

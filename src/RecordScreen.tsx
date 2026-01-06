@@ -6,7 +6,9 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState
+  useState,
+  lazy,
+  Suspense
 } from "react";
 import useInterval from "./useInterval";
 import secondsToHumanReadable from "./secondsToHumanReadable";
@@ -17,7 +19,6 @@ import {CodecId} from "opus-codec-worker/actions/actions";
 import {RecorderStateType} from "./Recorder";
 import {filesize} from "filesize";
 import Icon from "./Icon";
-import TimelineVisualizer from "./components/visualizer/TimelineVisualizer";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage";
@@ -29,6 +30,11 @@ import useRecordingNotes from "./useRecordingNotes";
 import useDebugAudioVisualizer from "./useDebugAudioVisualizer";
 import useTheme from "./useTheme";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+
+// Lazy load heavy visualizer component
+const TimelineVisualizer = lazy(
+  () => import("./components/visualizer/TimelineVisualizer")
+);
 
 export default function RecordingListScreen() {
   const theme = useTheme();
@@ -375,19 +381,27 @@ export default function RecordingListScreen() {
           ref={onCanvasContainerElementMount}
         >
           {canvasContainerDimensions !== null ? (
-            <TimelineVisualizer
-              canvasWidth="100%"
-              canvasHeight={448}
-              samplesPerSecond={20}
-              timeWindowSeconds={10}
-              waveformSamples={waveformSamples}
-              bookmarks={recordingBookmarks}
-              currentDuration={recording?.duration ?? 0}
-              totalDuration={recording?.duration}
-              backgroundColor={theme.colors.background}
-              barColor={theme.colors.barColor}
-              bookmarkColor={theme.colors.bookmarkColor}
-            />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <ActivityIndicator width={30} />
+                </div>
+              }
+            >
+              <TimelineVisualizer
+                canvasWidth="100%"
+                canvasHeight={448}
+                samplesPerSecond={20}
+                timeWindowSeconds={10}
+                waveformSamples={waveformSamples}
+                bookmarks={recordingBookmarks}
+                currentDuration={recording?.duration ?? 0}
+                totalDuration={recording?.duration}
+                backgroundColor={theme.colors.background}
+                barColor={theme.colors.barColor}
+                bookmarkColor={theme.colors.bookmarkColor}
+              />
+            </Suspense>
           ) : null}
         </div>
 

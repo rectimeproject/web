@@ -1,21 +1,27 @@
 import {useParams} from "react-router";
-import {useCallback, useMemo, useState} from "react";
+import {useCallback, useMemo, useState, lazy, Suspense} from "react";
 import useRecordingPlayer from "./useRecordingPlayer";
 import ActivityIndicator from "./ActivityIndicator";
 import {DateTime} from "luxon";
 import secondsToHumanReadable from "./secondsToHumanReadable";
-import TimelineVisualizer from "./components/visualizer/TimelineVisualizer";
 import Icon from "./Icon";
 import {filesize} from "filesize";
 import useTheme from "./useTheme";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
 import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
-import BookmarkPanel from "./components/bookmarks/BookmarkPanel";
 import {
   useUpdateRecordingNoteMutation,
   useDeleteRecordingNoteMutation
 } from "./hooks/queries/useRecordingNotesMutations";
 import usePlaybackWaveform from "./usePlaybackWaveform";
+
+// Lazy load heavy components
+const TimelineVisualizer = lazy(
+  () => import("./components/visualizer/TimelineVisualizer")
+);
+const BookmarkPanel = lazy(
+  () => import("./components/bookmarks/BookmarkPanel")
+);
 
 export default function RecordingDetailScreen() {
   const theme = useTheme();
@@ -181,22 +187,30 @@ export default function RecordingDetailScreen() {
               style={{height: "320px"}}
             >
               {canvasContainerDimensions !== null ? (
-                <TimelineVisualizer
-                  canvasHeight={320}
-                  canvasWidth={canvasContainerDimensions.width}
-                  samplesPerSecond={20}
-                  timeWindowSeconds={5}
-                  waveformSamples={waveformSamples}
-                  bookmarks={recordingBookmarks}
-                  currentDuration={
-                    player.playing?.cursor ? player.playing.cursor * 1000 : 0
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-full">
+                      <ActivityIndicator width={30} />
+                    </div>
                   }
-                  totalDuration={recording?.duration}
-                  onBookmarkClick={handleBookmarkSeek}
-                  backgroundColor={theme.colors.background}
-                  barColor={theme.colors.barColor}
-                  bookmarkColor={theme.colors.bookmarkColor}
-                />
+                >
+                  <TimelineVisualizer
+                    canvasHeight={320}
+                    canvasWidth={canvasContainerDimensions.width}
+                    samplesPerSecond={20}
+                    timeWindowSeconds={5}
+                    waveformSamples={waveformSamples}
+                    bookmarks={recordingBookmarks}
+                    currentDuration={
+                      player.playing?.cursor ? player.playing.cursor * 1000 : 0
+                    }
+                    totalDuration={recording?.duration}
+                    onBookmarkClick={handleBookmarkSeek}
+                    backgroundColor={theme.colors.background}
+                    barColor={theme.colors.barColor}
+                    bookmarkColor={theme.colors.bookmarkColor}
+                  />
+                </Suspense>
               ) : null}
               {player.playing !== null && player.playing.cursor !== null && (
                 <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
@@ -264,26 +278,34 @@ export default function RecordingDetailScreen() {
 
       {/* Bookmarks Section */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-        <BookmarkPanel
-          bookmarks={recordingBookmarks}
-          onSeek={handleBookmarkSeek}
-          onUpdate={handleBookmarkUpdate}
-          onDelete={handleBookmarkDelete}
-          updatingIds={
-            new Set(
-              updateMutation.isPending && updateMutation.variables
-                ? [updateMutation.variables.id]
-                : []
-            )
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center p-8">
+              <ActivityIndicator width={30} />
+            </div>
           }
-          deletingIds={
-            new Set(
-              deleteMutation.isPending && deleteMutation.variables
-                ? [deleteMutation.variables.noteId]
-                : []
-            )
-          }
-        />
+        >
+          <BookmarkPanel
+            bookmarks={recordingBookmarks}
+            onSeek={handleBookmarkSeek}
+            onUpdate={handleBookmarkUpdate}
+            onDelete={handleBookmarkDelete}
+            updatingIds={
+              new Set(
+                updateMutation.isPending && updateMutation.variables
+                  ? [updateMutation.variables.id]
+                  : []
+              )
+            }
+            deletingIds={
+              new Set(
+                deleteMutation.isPending && deleteMutation.variables
+                  ? [deleteMutation.variables.noteId]
+                  : []
+              )
+            }
+          />
+        </Suspense>
       </div>
     </div>
   );
