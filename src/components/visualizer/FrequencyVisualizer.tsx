@@ -49,10 +49,8 @@ export default function FrequencyVisualizer({
 
           const data = new Uint8Array(analyserNode.frequencyBinCount);
           const barSpacing = 2;
-          const barWidth = Math.max(
-            2,
-            (dimensions.width - barSpacing * (barCount - 1)) / barCount
-          );
+          // Fixed bar width based on canvas width as reference
+          const barWidth = 6;
           let frameId: number;
 
           const draw = () => {

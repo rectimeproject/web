@@ -59,13 +59,10 @@ export function useTimelineWaveform({
     const startIndex = Math.max(0, waveformSamples.length - maxSamplesInWindow);
     const visibleSamples = waveformSamples.slice(startIndex);
 
-    // Calculate bar width - fit all visible samples into canvas width with consistent spacing
+    // Calculate bar width - fixed width for consistent appearance
     const barSpacing = 2;
-    const barWidth = Math.max(
-      2,
-      (dimensions.width - barSpacing * (visibleSamples.length - 1)) /
-        visibleSamples.length
-    );
+    // Fixed bar width based on canvas width as reference
+    const barWidth = 6;
 
     // Clear all bars first
     barsRef.current.forEach(bar => {
