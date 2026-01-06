@@ -55,7 +55,11 @@ export default function FrequencyVisualizer({
             analyserNode.getByteFrequencyData(data);
 
             barsRef.current.forEach((bar, i) => {
-              const height = Math.max(data[i] ?? 0, 10);
+              // Scale to 80% of canvas height with minimum 4px
+              const rawHeight = data[i] ?? 0;
+              const normalizedHeight =
+                (rawHeight / 255) * dimensions.height * 0.8;
+              const height = Math.max(normalizedHeight, 4);
               const x = i * barWidth;
               const y = dimensions.height / 2 - height / 2;
 

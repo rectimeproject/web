@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import {useEffect} from "react";
 import * as PIXI from "pixi.js";
 
 interface Dimensions {
@@ -74,7 +74,10 @@ export function useTimelineWaveform({
     });
 
     // Render visible waveform bars (only as many as we have bars for)
-    const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
+    const samplesToRender = Math.min(
+      visibleSamples.length,
+      barsRef.current.length
+    );
 
     console.log("[useTimelineWaveform] Rendering waveform", {
       visibleSamplesLength: visibleSamples.length,
@@ -99,11 +102,11 @@ export function useTimelineWaveform({
 
       const x = i * (barWidth + barSpacing);
 
-      // Normalize amplitude to be more visible (0-255 range from analyser)
+      // Normalize amplitude to be more visible (0-100 range from usePlaybackWaveform)
       // Apply logarithmic scaling for better visual representation
-      const normalizedAmp = Math.min(amplitude / 255, 1);
+      const normalizedAmp = Math.min(amplitude / 100, 1);
       const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
-      const height = Math.max(boostedAmp * dimensions.height * 0.9, 4);
+      const height = Math.max(boostedAmp * dimensions.height * 0.8, 4);
       const y = dimensions.height / 2 - height / 2;
 
       bar.clear();
@@ -113,7 +116,7 @@ export function useTimelineWaveform({
       bar.roundRect(x, y, barWidth, height, radius);
 
       // Full opacity for better visibility
-      bar.fill({ color: barColor, alpha: 1 });
+      bar.fill({color: barColor, alpha: 1});
     }
   }, [
     waveformSamples,
