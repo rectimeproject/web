@@ -110,7 +110,9 @@ export default function RecordingDetailScreen() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center">
           <ActivityIndicator width={50} />
-          <div className="mt-4 text-gray-600 dark:text-gray-400">Loading recording...</div>
+          <div className="mt-4 text-gray-600 dark:text-gray-400">
+            Loading recording...
+          </div>
         </div>
       </div>
     );
@@ -176,13 +178,11 @@ export default function RecordingDetailScreen() {
                   canvasHeight={320}
                   canvasWidth={canvasContainerDimensions.width}
                   samplesPerSecond={20}
-                  timeWindowSeconds={undefined}
+                  timeWindowSeconds={5}
                   waveformSamples={[]}
                   bookmarks={recordingBookmarks}
                   currentDuration={
-                    player.playing?.cursor
-                      ? player.playing.cursor * 1000
-                      : 0
+                    player.playing?.cursor ? player.playing.cursor * 1000 : 0
                   }
                   totalDuration={recording?.duration}
                   onBookmarkClick={handleBookmarkSeek}
@@ -191,12 +191,11 @@ export default function RecordingDetailScreen() {
                   bookmarkColor={theme.colors.bookmarkColor}
                 />
               ) : null}
-              {player.playing !== null &&
-                player.playing.cursor !== null && (
-                  <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
-                    {secondsToHumanReadable(player.playing.cursor)}
-                  </div>
-                )}
+              {player.playing !== null && player.playing.cursor !== null && (
+                <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
+                  {secondsToHumanReadable(player.playing.cursor)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -263,16 +262,20 @@ export default function RecordingDetailScreen() {
           onSeek={handleBookmarkSeek}
           onUpdate={handleBookmarkUpdate}
           onDelete={handleBookmarkDelete}
-          updatingIds={new Set(
-            updateMutation.isPending && updateMutation.variables
-              ? [updateMutation.variables.id]
-              : []
-          )}
-          deletingIds={new Set(
-            deleteMutation.isPending && deleteMutation.variables
-              ? [deleteMutation.variables.noteId]
-              : []
-          )}
+          updatingIds={
+            new Set(
+              updateMutation.isPending && updateMutation.variables
+                ? [updateMutation.variables.id]
+                : []
+            )
+          }
+          deletingIds={
+            new Set(
+              deleteMutation.isPending && deleteMutation.variables
+                ? [deleteMutation.variables.noteId]
+                : []
+            )
+          }
         />
       </div>
     </div>

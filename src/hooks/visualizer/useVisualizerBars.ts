@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import {useEffect, useRef} from "react";
 import * as PIXI from "pixi.js";
 
 type VisualizationMode =
-  | { type: "frequency"; barCount?: number }
-  | { type: "timeline"; samplesPerSecond?: number; timeWindowSeconds?: number };
+  | {type: "frequency"; barCount?: number}
+  | {type: "timeline"; samplesPerSecond?: number; timeWindowSeconds?: number};
 
 interface UseVisualizerBarsOptions {
   visualizationMode: VisualizationMode;
@@ -23,14 +23,14 @@ export function useVisualizerBars({
   const barsRef = useRef<PIXI.Graphics[]>([]);
 
   useEffect(() => {
-    console.log("[useVisualizerBars] Bar creation effect", {
-      isPixiReady,
-      hasBarsContainer: !!barsContainerRef.current,
-      visualizationMode: visualizationMode.type
-    });
+    // console.log("[useVisualizerBars] Bar creation effect", {
+    //   isPixiReady,
+    //   hasBarsContainer: !!barsContainerRef.current,
+    //   visualizationMode: visualizationMode.type
+    // });
 
     if (!isPixiReady || !barsContainerRef.current) {
-      console.log("[useVisualizerBars] Skipping bar creation - PixiJS not ready yet");
+      // console.log("[useVisualizerBars] Skipping bar creation - PixiJS not ready yet");
       return;
     }
 
