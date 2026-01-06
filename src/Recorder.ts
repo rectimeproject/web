@@ -1,4 +1,4 @@
-import Client from 'opus-codec-worker/actions/Client';
+import Client from "opus-codec-worker/actions/Client";
 import {
   CodecId,
   // IEncodeFloatResult,
@@ -7,44 +7,44 @@ import {
   encodeFloat,
   getFromEncoder,
   initializeWorker,
-  setToEncoder,
-} from 'opus-codec-worker/actions/actions';
+  setToEncoder
+} from "opus-codec-worker/actions/actions";
 import {
   AnalyserNode,
   AudioWorkletNode,
   IAudioContext,
   IAudioWorkletNode,
-  MediaStreamAudioSourceNode,
-} from 'standardized-audio-context';
-import { EventEmitter } from 'eventual-js';
+  MediaStreamAudioSourceNode
+} from "standardized-audio-context";
+import {EventEmitter} from "eventual-js";
 import {
   OPUS_GET_BANDWIDTH,
   OPUS_GET_BITRATE,
   OPUS_GET_MAX_BANDWIDTH,
-  OPUS_SET_BITRATE,
-} from 'opus-codec-worker/actions/opus';
-import * as opus from 'opus-codec/opus';
+  OPUS_SET_BITRATE
+} from "opus-codec-worker/actions/opus";
+import * as opus from "opus-codec/opus";
 
 export enum RecorderStateType {
   Idle,
   StoppingToRecord,
   StartingToRecord,
-  Recording,
+  Recording
 }
 
 export class Opus {
   readonly worker;
   readonly client;
   public constructor() {
-    this.worker = new Worker('/opus/worker.js');
+    this.worker = new Worker("/opus/worker.js");
     this.client = new Client(this.worker);
     this.client
       .sendMessage(
         initializeWorker({
-          wasmFileHref: '/opus/index.wasm',
+          wasmFileHref: "/opus/index.wasm"
         })
       )
-      .then((result) => {
+      .then(result => {
         console.log(result);
       });
   }
@@ -64,8 +64,9 @@ interface IRecordingRecorderState {
   } | null;
 }
 
-interface IStartingToRecordRecorderState
-  extends Partial<Omit<IRecordingRecorderState, 'type' | 'recording'>> {
+interface IStartingToRecordRecorderState extends Partial<
+  Omit<IRecordingRecorderState, "type" | "recording">
+> {
   type: RecorderStateType.StartingToRecord;
 }
 
@@ -100,12 +101,12 @@ export default class Recorder extends EventEmitter<{
   #currentState: RecorderState;
   public constructor(audioContext: IAudioContext, opus: Opus) {
     super({
-      maxListenerWaitTime: 10000,
+      maxListenerWaitTime: 10000
     });
     this.#opus = opus;
     this.#audioContext = audioContext;
     this.#currentState = {
-      type: RecorderStateType.Idle,
+      type: RecorderStateType.Idle
     };
   }
   /**
@@ -117,7 +118,7 @@ export default class Recorder extends EventEmitter<{
       case RecorderStateType.Recording:
       case RecorderStateType.StartingToRecord:
         await this.#setStateToIdle();
-        console.log('state set back to idle');
+        console.log("state set back to idle");
         return state.encoderId;
     }
     return null;
@@ -145,11 +146,11 @@ export default class Recorder extends EventEmitter<{
           newStream = await navigator.mediaDevices.getUserMedia({
             audio: {
               deviceId: device.deviceId,
-              groupId: device.groupId,
-            },
+              groupId: device.groupId
+            }
           });
         } catch (reason) {
-          console.error('failed to get media stream with error: %o', reason);
+          console.error("failed to get media stream with error: %o", reason);
           return false;
         }
         const oldStream = state.mediaStream;
@@ -183,7 +184,7 @@ export default class Recorder extends EventEmitter<{
   public async start({
     device,
     maxDataBytes = 500,
-    frameSize: maybeFrameSize,
+    frameSize: maybeFrameSize
   }: Partial<{
     frameSize: number;
     maxDataBytes: number;
@@ -194,21 +195,19 @@ export default class Recorder extends EventEmitter<{
   } | null> {
     if (this.#currentState.type !== RecorderStateType.Idle) {
       console.error(
-        'start() called, but recorder was in invalid state: %o',
+        "start() called, but recorder was in invalid state: %o",
         this.#currentState
       );
       return null;
     }
-    const supportedFrameSizes = this.#opusCompliantDurations.map(
-      (duration) => ({
-        frameSize: (duration * this.#audioContext.sampleRate) / 1000,
-        duration,
-      })
-    );
-    if (typeof maybeFrameSize === 'undefined') {
+    const supportedFrameSizes = this.#opusCompliantDurations.map(duration => ({
+      frameSize: (duration * this.#audioContext.sampleRate) / 1000,
+      duration
+    }));
+    if (typeof maybeFrameSize === "undefined") {
       for (const fs2 of supportedFrameSizes) {
         console.log(
-          'selecting %d ms frame size, because nothing else was provided: %d',
+          "selecting %d ms frame size, because nothing else was provided: %d",
           fs2.duration,
           fs2.frameSize
         );
@@ -216,13 +215,13 @@ export default class Recorder extends EventEmitter<{
         break;
       }
     }
-    if (typeof maybeFrameSize === 'undefined') {
-      console.error('failed to find frame size automatically');
+    if (typeof maybeFrameSize === "undefined") {
+      console.error("failed to find frame size automatically");
       return null;
     }
-    if (!supportedFrameSizes.some((fs) => fs.frameSize === maybeFrameSize)) {
+    if (!supportedFrameSizes.some(fs => fs.frameSize === maybeFrameSize)) {
       console.error(
-        'invalid frame size. supported frame sizes are: %o',
+        "invalid frame size. supported frame sizes are: %o",
         supportedFrameSizes
       );
       return null;
@@ -232,7 +231,7 @@ export default class Recorder extends EventEmitter<{
      */
     const frameSize = maybeFrameSize;
     const startingToRecord: IStartingToRecordRecorderState = {
-      type: RecorderStateType.StartingToRecord,
+      type: RecorderStateType.StartingToRecord
     };
     this.#currentState = startingToRecord;
     let mediaStream: MediaStream;
@@ -241,12 +240,12 @@ export default class Recorder extends EventEmitter<{
         audio: device
           ? {
               deviceId: device.deviceId,
-              groupId: device.groupId,
+              groupId: device.groupId
             }
-          : true,
+          : true
       });
     } catch (reason) {
-      console.error('failed to get user media with error: %o', reason);
+      console.error("failed to get user media with error: %o", reason);
       await this.#setStateToIdle();
       return null;
     }
@@ -263,13 +262,13 @@ export default class Recorder extends EventEmitter<{
         application: opus.constants.OPUS_APPLICATION_VOIP,
         channels: 1,
         pcmBufferLength: frameSize * Float32Array.BYTES_PER_ELEMENT,
-        outBufferLength: maxDataBytes,
+        outBufferLength: maxDataBytes
       })
     );
-    if ('failures' in encoderId) {
+    if ("failures" in encoderId) {
       console.error(
-        'failed to create encoder with failures: %s',
-        encoderId.failures.join(', ')
+        "failed to create encoder with failures: %s",
+        encoderId.failures.join(", ")
       );
       await this.#setStateToIdle();
       return null;
@@ -278,20 +277,20 @@ export default class Recorder extends EventEmitter<{
      * set encoder id
      */
     startingToRecord.encoderId = encoderId.value;
-    console.log('successfully created encoder: %s', encoderId.value);
+    console.log("successfully created encoder: %s", encoderId.value);
     const setBitRateResult = await this.#opus.client.sendMessage(
       setToEncoder(OPUS_SET_BITRATE(encoderId.value, 32000))
     );
-    if ('failures' in setBitRateResult) {
+    if ("failures" in setBitRateResult) {
       console.error(
-        'failed to set bitrate with failures: %s',
-        setBitRateResult.failures.join(', ')
+        "failed to set bitrate with failures: %s",
+        setBitRateResult.failures.join(", ")
       );
       await this.#setStateToIdle();
       return null;
     }
     console.log(
-      'bitrate: %o',
+      "bitrate: %o",
       await Promise.all([
         this.#opus.client.sendMessage(
           getFromEncoder(OPUS_GET_BITRATE(encoderId.value))
@@ -301,30 +300,30 @@ export default class Recorder extends EventEmitter<{
         ),
         this.#opus.client.sendMessage(
           getFromEncoder(OPUS_GET_MAX_BANDWIDTH(encoderId.value))
-        ),
+        )
       ])
     );
     if (!AudioWorkletNode) {
-      console.error('AudioWorkletNode is not supported');
+      console.error("AudioWorkletNode is not supported");
       return null;
     }
     /**
      * emit start recording
      */
-    this.emit('startRecording', {
+    this.emit("startRecording", {
       encoderId: encoderId.value,
       sampleRate: this.#audioContext.sampleRate,
       channels: 1,
-      frameSize,
+      frameSize
     });
     const workletNode = new AudioWorkletNode(
       this.#audioContext,
-      'default-audio-processor',
+      "default-audio-processor",
       {
         parameterData: {
           frameSize,
-          debug: 0,
-        },
+          debug: 0
+        }
       }
     );
     /**
@@ -356,7 +355,7 @@ export default class Recorder extends EventEmitter<{
       device: device
         ? {
             deviceId: device.deviceId,
-            groupId: device.groupId,
+            groupId: device.groupId
           }
         : null,
       type: RecorderStateType.Recording,
@@ -364,7 +363,7 @@ export default class Recorder extends EventEmitter<{
       encoderId: encoderId.value,
       mediaStream,
       mediaStreamAudioSourceNode: sourceNode,
-      audioWorkletNode: workletNode,
+      audioWorkletNode: workletNode
     };
     this.#currentState = recordingState;
     let pending = Promise.resolve();
@@ -379,17 +378,17 @@ export default class Recorder extends EventEmitter<{
           const result = await this.#opus.client.sendMessage(
             encodeFloat({
               input: {
-                pcm,
+                pcm
               },
               maxDataBytes,
-              encoderId: encoderId.value,
+              encoderId: encoderId.value
             })
           );
-          if (result && 'failures' in result) {
-            workletNode.port.removeEventListener('message', onReceiveSamples);
+          if (result && "failures" in result) {
+            workletNode.port.removeEventListener("message", onReceiveSamples);
             console.error(
-              'stopping encoding because of failures: %s',
-              result.failures.join(', ')
+              "stopping encoding because of failures: %s",
+              result.failures.join(", ")
             );
             return;
           }
@@ -398,23 +397,23 @@ export default class Recorder extends EventEmitter<{
               // Encoder returned null - this is normal when there's not enough data for a full frame
               return;
             }
-            this.emit('encoded', {
+            this.emit("encoded", {
               size: result.value.encoded.buffer.byteLength,
               sampleCount: pcm.length,
               duration: result.value.encoded.duration,
               buffer: result.value.encoded.buffer,
-              encoderId: encoderId.value,
+              encoderId: encoderId.value
             });
           }
         })
-        .catch((reason) => {
-          console.error('failure while trying to decode samples: %o', reason);
+        .catch(reason => {
+          console.error("failure while trying to decode samples: %o", reason);
         });
     };
     /**
      * expect samples from worklet
      */
-    workletNode.port.addEventListener('message', onReceiveSamples);
+    workletNode.port.addEventListener("message", onReceiveSamples);
     /**
      * start port
      */
@@ -423,13 +422,13 @@ export default class Recorder extends EventEmitter<{
     const getBitrateResult = await this.#opus.client.sendMessage(
       getFromEncoder(OPUS_GET_BITRATE(encoderId.value))
     );
-    if ('failures' in getBitrateResult) {
-      console.error('failed to get bitrate with error: %o', getBitrateResult);
+    if ("failures" in getBitrateResult) {
+      console.error("failed to get bitrate with error: %o", getBitrateResult);
       return null;
     }
     return {
       encoderId: encoderId.value,
-      bitrate: getBitrateResult.value,
+      bitrate: getBitrateResult.value
     };
   }
   async #setStateToIdle() {
@@ -445,20 +444,20 @@ export default class Recorder extends EventEmitter<{
         try {
           t.stop();
         } catch (reason) {
-          console.error('failed to stop track');
+          console.error("failed to stop track");
         }
       }
     }
     if (currentState.audioWorkletNode) {
       currentState.audioWorkletNode.port.postMessage({
-        stop: true,
+        stop: true
       });
       try {
         // Disconnect from all connections (worklet is connected to analyserNode, not destination)
         currentState.audioWorkletNode.disconnect();
       } catch (reason) {
         console.error(
-          'failed to disconnect audio worklet with error: %o',
+          "failed to disconnect audio worklet with error: %o",
           reason
         );
       }
@@ -466,7 +465,7 @@ export default class Recorder extends EventEmitter<{
     /**
      * wait for all events to be delivered
      */
-    await this.wait(['encoded', 'startRecording']);
+    await this.wait(["encoded", "startRecording"]);
     // if (currentState.encoderId) {
     //   let result: RequestResponse<IEncodeFloatResult>;
     //   do {
@@ -486,7 +485,7 @@ export default class Recorder extends EventEmitter<{
     //   } while (!('failures' in result) && result.value.encoded !== null);
     // }
     this.#currentState = {
-      type: RecorderStateType.Idle,
+      type: RecorderStateType.Idle
     };
   }
 }

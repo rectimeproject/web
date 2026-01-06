@@ -40,7 +40,8 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {

@@ -1,11 +1,14 @@
-import { Link } from 'react-router-dom';
-import Icon from './Icon';
+import {Link} from "react-router-dom";
+import Icon from "./Icon";
 
 export default function NavigationBar() {
   return (
     <nav className="navbar navbar-expand-lg bg-body-tertiary">
       <div className="container">
-        <Link to="/" className="navbar-brand">
+        <Link
+          to="/"
+          className="navbar-brand"
+        >
           <Icon name="mic" /> Rectime
         </Link>
         {/* <button
@@ -19,10 +22,16 @@ export default function NavigationBar() {
         >
           <span className="navbar-toggler-icon"></span>
         </button> */}
-        <div className="collapse navbar-collapse" id="navbarSupportedContent">
+        <div
+          className="collapse navbar-collapse"
+          id="navbarSupportedContent"
+        >
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-              <Link to="/" className="nav-link">
+              <Link
+                to="/"
+                className="nav-link"
+              >
                 Home
               </Link>
             </li>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {useCallback, useEffect, useMemo, useRef} from "react";
 
 export default function useInterval(ms: number) {
   const timeoutId = useRef<number | null>(null);
@@ -29,7 +29,7 @@ export default function useInterval(ms: number) {
         try {
           callback.current();
         } catch (reason) {
-          console.error('interval callback failed with exception: %o', reason);
+          console.error("interval callback failed with exception: %o", reason);
         }
       }
       timeoutId.current = null;
@@ -51,7 +51,7 @@ export default function useInterval(ms: number) {
     () => ({
       start,
       setCallback,
-      stop,
+      stop
     }),
     [start, stop, setCallback]
   );

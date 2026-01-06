@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import {useCallback, useMemo, useState} from "react";
 
 export interface IStorageEstimate {
   quota?: number;
@@ -19,12 +19,12 @@ export default function useNavigatorStorage() {
     setIsEstimating(true);
     navigator.storage
       .estimate()
-      .then((result) => {
+      .then(result => {
         const newResult: IStorageEstimate = {};
-        if (typeof result.quota === 'number') {
+        if (typeof result.quota === "number") {
           newResult.quota = result.quota;
         }
-        if (typeof result.usage === 'number') {
+        if (typeof result.usage === "number") {
           newResult.usage = result.usage;
         }
         setEstimateResult(newResult);
@@ -39,7 +39,7 @@ export default function useNavigatorStorage() {
       hasLoadedInitialEstimation,
       isEstimating,
       estimate,
-      estimateResult,
+      estimateResult
     }),
     [estimate, estimateResult, hasLoadedInitialEstimation, isEstimating]
   );

@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { useRecorderDatabaseContext } from './RecorderDatabaseContext';
-import { IRecordingNote } from './RecorderDatabase';
+import {useCallback, useMemo, useRef, useState} from "react";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
+import {IRecordingNote} from "./RecorderDatabase";
 
 export default function useRecordingNotes() {
   const noteIdRef = useRef(new Uint32Array(4));
@@ -13,24 +13,24 @@ export default function useRecordingNotes() {
       if (loadingNoteIds.includes(id)) {
         return;
       }
-      setLoadingNoteIds((ids) => [...ids, id]);
+      setLoadingNoteIds(ids => [...ids, id]);
       database
-        .transaction('recordingNotes', 'readonly')
-        .objectStore('recordingNotes')
+        .transaction("recordingNotes", "readonly")
+        .objectStore("recordingNotes")
         .get(id)
-        .then((newRecordingNode) => {
+        .then(newRecordingNode => {
           if (!newRecordingNode) {
             return;
           }
-          setRecordingNotes((list) => {
-            if (list.some((l) => l.id === id)) {
-              return list.map((n) => (n.id === id ? newRecordingNode : n));
+          setRecordingNotes(list => {
+            if (list.some(l => l.id === id)) {
+              return list.map(n => (n.id === id ? newRecordingNode : n));
             }
             return [...list, newRecordingNode];
           });
         })
         .finally(() => {
-          setLoadingNoteIds((ids) => ids.filter((id2) => id2 !== id));
+          setLoadingNoteIds(ids => ids.filter(id2 => id2 !== id));
         });
     },
     [database, setLoadingNoteIds, loadingNoteIds]
@@ -40,20 +40,20 @@ export default function useRecordingNotes() {
       if (isCreatingNode) {
         return;
       }
-      const noteId = crypto.getRandomValues(noteIdRef.current).join('-');
+      const noteId = crypto.getRandomValues(noteIdRef.current).join("-");
       setIsCreatingNode(true);
       database
-        .transaction('recordingNotes', 'readwrite')
-        .objectStore('recordingNotes')
+        .transaction("recordingNotes", "readwrite")
+        .objectStore("recordingNotes")
         .put({
           recordingId,
           id: noteId,
-          title: '',
-          contents: '',
+          title: "",
+          contents: "",
           durationOffset,
-          createdAt: new Date(),
+          createdAt: new Date()
         })
-        .then((recordingNoteKey) => {
+        .then(recordingNoteKey => {
           if (recordingNoteKey !== null)
             getRecordingNote(`${recordingNoteKey}`);
         })
@@ -67,12 +67,12 @@ export default function useRecordingNotes() {
     async (recordingId: string): Promise<IRecordingNote[]> => {
       const notes: IRecordingNote[] = [];
       const cursor = await database
-        .transaction('recordingNotes', 'readonly')
-        .objectStore('recordingNotes')
-        .index('recordingId')
+        .transaction("recordingNotes", "readonly")
+        .objectStore("recordingNotes")
+        .index("recordingId")
         .openCursor(IDBKeyRange.only(recordingId));
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         if (!cursor) {
           resolve([]);
           return;
@@ -88,7 +88,7 @@ export default function useRecordingNotes() {
         };
 
         cursor.onerror = () => {
-          console.error('Failed to fetch notes:', cursor.error);
+          console.error("Failed to fetch notes:", cursor.error);
           resolve([]);
         };
       });
@@ -100,12 +100,12 @@ export default function useRecordingNotes() {
     async (noteId: string): Promise<IRecordingNote | null> => {
       try {
         const note = await database
-          .transaction('recordingNotes', 'readonly')
-          .objectStore('recordingNotes')
+          .transaction("recordingNotes", "readonly")
+          .objectStore("recordingNotes")
           .get(noteId);
         return note ?? null;
       } catch (error) {
-        console.error('Failed to fetch note:', error);
+        console.error("Failed to fetch note:", error);
         return null;
       }
     },
@@ -116,11 +116,11 @@ export default function useRecordingNotes() {
     async (noteId: string): Promise<void> => {
       try {
         await database
-          .transaction('recordingNotes', 'readwrite')
-          .objectStore('recordingNotes')
+          .transaction("recordingNotes", "readwrite")
+          .objectStore("recordingNotes")
           .delete(noteId);
       } catch (error) {
-        console.error('Failed to delete note:', error);
+        console.error("Failed to delete note:", error);
         throw error;
       }
     },
@@ -133,8 +133,14 @@ export default function useRecordingNotes() {
       recordingNotes,
       getRecordingNotesByRecordingId,
       getRecordingNoteById,
-      deleteRecordingNote,
+      deleteRecordingNote
     }),
-    [recordingNotes, createRecordingNote, getRecordingNotesByRecordingId, getRecordingNoteById, deleteRecordingNote]
+    [
+      recordingNotes,
+      createRecordingNote,
+      getRecordingNotesByRecordingId,
+      getRecordingNoteById,
+      deleteRecordingNote
+    ]
   );
 }

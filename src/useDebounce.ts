@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {useCallback, useEffect, useMemo, useRef} from "react";
 
 export default function useDebounce(ms: number) {
   const timeout = useRef<number | null>(null);
@@ -16,13 +16,13 @@ export default function useDebounce(ms: number) {
         try {
           result = fn();
         } catch (reason) {
-          console.error('input function threw an exception: %o', reason);
+          console.error("input function threw an exception: %o", reason);
           return;
         }
         if (result) {
-          result.catch((reason) => {
+          result.catch(reason => {
             console.error(
-              'promise returned by the input function failed with: %o',
+              "promise returned by the input function failed with: %o",
               reason
             );
           });
@@ -34,7 +34,7 @@ export default function useDebounce(ms: number) {
   useEffect(() => () => reset(), [reset]);
   return useMemo(
     () => ({
-      run,
+      run
     }),
     [run]
   );

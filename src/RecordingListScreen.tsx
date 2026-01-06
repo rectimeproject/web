@@ -1,12 +1,12 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { DateTime } from 'luxon';
-import Icon from './Icon';
-import secondsToHumanReadable from './secondsToHumanReadable';
-import { useNavigate } from 'react-router';
-import ActivityIndicator from './ActivityIndicator';
-import { Link } from 'react-router-dom';
-import { useRecordingsInfiniteQuery } from './hooks/queries/useRecordingsInfiniteQuery';
-import { useUpdateRecordingMutation } from './hooks/queries/useRecordingMutations';
+import {ChangeEvent, useCallback, useEffect, useMemo, useState} from "react";
+import {DateTime} from "luxon";
+import Icon from "./Icon";
+import secondsToHumanReadable from "./secondsToHumanReadable";
+import {useNavigate} from "react-router";
+import ActivityIndicator from "./ActivityIndicator";
+import {Link} from "react-router-dom";
+import {useRecordingsInfiniteQuery} from "./hooks/queries/useRecordingsInfiniteQuery";
+import {useUpdateRecordingMutation} from "./hooks/queries/useRecordingMutations";
 
 export default function RecordingListScreen() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function RecordingListScreen() {
     isLoading,
     isError,
     error,
-    refetch,
+    refetch
   } = useRecordingsInfiniteQuery(10);
 
   const updateRecordingMutation = useUpdateRecordingMutation();
@@ -36,21 +36,21 @@ export default function RecordingListScreen() {
 
   const recordings = useMemo(() => {
     if (!data) return [];
-    return data.pages.flatMap((page) => page.recordings);
+    return data.pages.flatMap(page => page.recordings);
   }, [data]);
 
   const recordingsWithHandlers = useMemo(
     () =>
-      recordings.map((r) => ({
+      recordings.map(r => ({
         ...r,
         onChangeNewRecordingName: (e: ChangeEvent<HTMLInputElement>) => {
           const newName = e.target.value;
           setNewRecordingNames(
-            (newRecordingNames) =>
+            newRecordingNames =>
               new Map([...newRecordingNames, [r.id, newName]])
           );
         },
-        onClickPlay: () => openSpecificRecordingPage(r.id),
+        onClickPlay: () => openSpecificRecordingPage(r.id)
       })),
     [openSpecificRecordingPage, setNewRecordingNames, recordings]
   );
@@ -60,9 +60,9 @@ export default function RecordingListScreen() {
     const timeoutIds: NodeJS.Timeout[] = [];
 
     for (const [id, name] of newRecordingNames) {
-      const recording = recordings.find((r) => r.id === id);
+      const recording = recordings.find(r => r.id === id);
       if (!recording) {
-        console.error('failed to find recording: %s', id);
+        console.error("failed to find recording: %s", id);
         continue;
       }
       if (recording.name === name) {
@@ -73,7 +73,7 @@ export default function RecordingListScreen() {
       const timeoutId = setTimeout(() => {
         updateRecordingMutation.mutate({
           ...recording,
-          name,
+          name
         });
       }, 500);
 
@@ -100,9 +100,9 @@ export default function RecordingListScreen() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   useEffect(() => {
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll);
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [onScroll]);
 
@@ -130,9 +130,12 @@ export default function RecordingListScreen() {
           <div className="col-lg-12">
             <div className="text-center my-4">
               <div className="alert alert-danger">
-                Failed to load recordings: {error?.message ?? 'Unknown error'}
+                Failed to load recordings: {error?.message ?? "Unknown error"}
               </div>
-              <button className="btn btn-primary" onClick={() => refetch()}>
+              <button
+                className="btn btn-primary"
+                onClick={() => refetch()}
+              >
                 Retry
               </button>
             </div>
@@ -154,8 +157,11 @@ export default function RecordingListScreen() {
             </>
           ) : (
             <>
-              {recordingsWithHandlers.map((r) => (
-                <div className="d-flex recording" key={r.id}>
+              {recordingsWithHandlers.map(r => (
+                <div
+                  className="d-flex recording"
+                  key={r.id}
+                >
                   <div className="flex-fill overflow-hidden">
                     <div>
                       {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
@@ -168,7 +174,7 @@ export default function RecordingListScreen() {
                           value={newRecordingNames.get(r.id) ?? r.name}
                           onChange={r.onChangeNewRecordingName}
                           style={{
-                            border: 'none',
+                            border: "none"
                           }}
                           disabled={updateRecordingMutation.isPending}
                         />
@@ -179,7 +185,10 @@ export default function RecordingListScreen() {
                     {updateRecordingMutation.isPending ? (
                       <ActivityIndicator />
                     ) : (
-                      <div className="play-arrow" onClick={r.onClickPlay}>
+                      <div
+                        className="play-arrow"
+                        onClick={r.onClickPlay}
+                      >
                         <Icon name="headphones" />
                       </div>
                     )}

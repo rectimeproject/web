@@ -1,16 +1,10 @@
 {
-  "include": [
-    "src",
-    "vite.config.ts"
-  ],
+  "include": ["src", "vite.config.ts"],
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vite/client", "vitest/globals"],
+    "types": ["vite/client", "vitest/globals", "react", "react-dom"],
     "jsx": "react-jsx",
-    "lib": [
-      "ESNext",
-      "DOM"
-    ],
+    "lib": ["ESNext", "DOM"],
     "incremental": true,
     "composite": true,
     "target": "esnext",

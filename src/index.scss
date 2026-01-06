@@ -1,5 +1,5 @@
-@import 'bootstrap/scss/bootstrap-reboot.scss';
-@import 'bootstrap/scss/bootstrap.scss';
+@import "bootstrap/scss/bootstrap-reboot.scss";
+@import "bootstrap/scss/bootstrap.scss";
 
 // Theme variables
 :root {
@@ -18,7 +18,7 @@
   --duration-text: #ffffff;
 }
 
-[data-theme='dark'] {
+[data-theme="dark"] {
   // Dark theme
   --bg-primary: #212529;
   --bg-secondary: #343a40;
@@ -41,7 +41,9 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .container,
@@ -57,8 +59,8 @@ body {
 }
 
 // components
-@import './RecordingItem.scss';
-@import './RecordScreen.scss';
-@import './RecordingDetailScreen.scss';
-@import './RecordingListScreen.scss';
-@import './Icon.scss';
+@import "./RecordingItem.scss";
+@import "./RecordScreen.scss";
+@import "./RecordingDetailScreen.scss";
+@import "./RecordingListScreen.scss";
+@import "./Icon.scss";

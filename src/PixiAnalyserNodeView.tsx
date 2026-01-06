@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AnalyserNode, IAudioContext } from "standardized-audio-context";
+import {useEffect, useRef, useState} from "react";
+import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import * as PIXI from "pixi.js";
 
 interface IBookmark {
@@ -9,8 +9,8 @@ interface IBookmark {
 }
 
 type VisualizationMode =
-  | { type: "frequency"; barCount?: number }
-  | { type: "timeline"; samplesPerSecond?: number; timeWindowSeconds?: number };
+  | {type: "frequency"; barCount?: number}
+  | {type: "timeline"; samplesPerSecond?: number; timeWindowSeconds?: number};
 
 interface Props {
   analyserNode: AnalyserNode<IAudioContext> | null;
@@ -44,14 +44,14 @@ export default function PixiAnalyserNodeView({
   barColor = 0x495057,
   bookmarkColor = 0xff6b6b,
   waveformSamples = [],
-  playbackPosition = 0,
+  playbackPosition = 0
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const barsRef = useRef<PIXI.Graphics[]>([]);
   const barsContainerRef = useRef<PIXI.Container | null>(null);
   const markersContainerRef = useRef<PIXI.Container | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 256 });
+  const [dimensions, setDimensions] = useState({width: 800, height: 256});
   const [isPixiReady, setIsPixiReady] = useState(false);
 
   // Initialize PixiJS app (PixiJS 8 async initialization)
@@ -69,11 +69,11 @@ export default function PixiAnalyserNodeView({
         background: backgroundColor,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
+        autoDensity: true
       });
 
       if (cleanedUp) {
-        app.destroy(true, { children: true });
+        app.destroy(true, {children: true});
         return;
       }
 
@@ -94,7 +94,9 @@ export default function PixiAnalyserNodeView({
       barsRef.current = [];
 
       // Signal that PixiJS is ready
-      console.log('[PixiAnalyserNodeView] PixiJS initialized, ready to create bars');
+      console.log(
+        "[PixiAnalyserNodeView] PixiJS initialized, ready to create bars"
+      );
       setIsPixiReady(true);
     })();
 
@@ -102,7 +104,7 @@ export default function PixiAnalyserNodeView({
       cleanedUp = true;
       setIsPixiReady(false);
       if (appRef.current) {
-        appRef.current.destroy(true, { children: true });
+        appRef.current.destroy(true, {children: true});
         appRef.current = null;
         barsRef.current = [];
         markersContainerRef.current = null;
@@ -114,13 +116,13 @@ export default function PixiAnalyserNodeView({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const observer = new ResizeObserver((entries) => {
-      const { width } = entries[0]?.contentRect ?? { width: 800 };
+    const observer = new ResizeObserver(entries => {
+      const {width} = entries[0]?.contentRect ?? {width: 800};
       const height =
         typeof canvasHeight === "number"
           ? canvasHeight
-          : entries[0]?.contentRect.height ?? 256;
-      setDimensions({ width, height });
+          : (entries[0]?.contentRect.height ?? 256);
+      setDimensions({width, height});
       appRef.current?.renderer.resize(width, height);
     });
 
@@ -130,14 +132,16 @@ export default function PixiAnalyserNodeView({
 
   // Dynamically create/update bars based on visualization mode
   useEffect(() => {
-    console.log('[PixiAnalyserNodeView] Bar creation effect', {
+    console.log("[PixiAnalyserNodeView] Bar creation effect", {
       isPixiReady,
       hasBarsContainer: !!barsContainerRef.current,
-      visualizationMode: visualizationMode.type,
+      visualizationMode: visualizationMode.type
     });
 
     if (!isPixiReady || !barsContainerRef.current) {
-      console.log('[PixiAnalyserNodeView] Skipping bar creation - PixiJS not ready yet');
+      console.log(
+        "[PixiAnalyserNodeView] Skipping bar creation - PixiJS not ready yet"
+      );
       return;
     }
 
@@ -157,7 +161,7 @@ export default function PixiAnalyserNodeView({
     // Only recreate bars if the count changed
     if (barsRef.current.length !== barCount) {
       // Clear existing bars
-      barsRef.current.forEach((bar) => {
+      barsRef.current.forEach(bar => {
         container.removeChild(bar);
         bar.destroy();
       });
@@ -171,18 +175,20 @@ export default function PixiAnalyserNodeView({
         bars.push(bar);
       }
       barsRef.current = bars;
-      console.log(`[PixiAnalyserNodeView] Created ${barCount} bars for ${visualizationMode.type} mode`);
+      console.log(
+        `[PixiAnalyserNodeView] Created ${barCount} bars for ${visualizationMode.type} mode`
+      );
     }
   }, [visualizationMode, isPixiReady]);
 
   // Render visualization based on mode
   useEffect(() => {
-    console.log('[PixiAnalyserNodeView] Render effect triggered', {
+    console.log("[PixiAnalyserNodeView] Render effect triggered", {
       mode: visualizationMode.type,
       waveformSamplesLength: waveformSamples.length,
       barsLength: barsRef.current.length,
       dimensionsWidth: dimensions.width,
-      dimensionsHeight: dimensions.height,
+      dimensionsHeight: dimensions.height
     });
 
     if (visualizationMode.type === "frequency") {
@@ -218,24 +224,26 @@ export default function PixiAnalyserNodeView({
 
       return () => {
         cancelAnimationFrame(frameId);
-        barsRef.current.forEach((bar) => bar.clear());
+        barsRef.current.forEach(bar => bar.clear());
       };
     } else if (visualizationMode.type === "timeline") {
       // Timeline mode: render waveform over time
-      console.log('[PixiAnalyserNodeView] Timeline mode rendering', {
+      console.log("[PixiAnalyserNodeView] Timeline mode rendering", {
         barsLength: barsRef.current.length,
-        samplesLength: waveformSamples.length,
+        samplesLength: waveformSamples.length
       });
 
       if (!barsRef.current.length) {
-        console.log('[PixiAnalyserNodeView] No bars created yet');
+        console.log("[PixiAnalyserNodeView] No bars created yet");
         return;
       }
 
       if (waveformSamples.length === 0) {
-        console.log('[PixiAnalyserNodeView] No waveform samples, clearing bars');
+        console.log(
+          "[PixiAnalyserNodeView] No waveform samples, clearing bars"
+        );
         // Clear all bars and return
-        barsRef.current.forEach((bar) => bar.clear());
+        barsRef.current.forEach(bar => bar.clear());
         return;
       }
 
@@ -259,21 +267,24 @@ export default function PixiAnalyserNodeView({
       const barSpacing = 1;
       const barWidth = Math.max(
         2,
-        (dimensions.width / visibleSamples.length) - barSpacing
+        dimensions.width / visibleSamples.length - barSpacing
       );
 
       // Clear all bars first
-      barsRef.current.forEach((bar) => bar.clear());
+      barsRef.current.forEach(bar => bar.clear());
 
       // Render visible waveform bars (only as many as we have bars for)
-      const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
+      const samplesToRender = Math.min(
+        visibleSamples.length,
+        barsRef.current.length
+      );
 
-      console.log('[PixiAnalyserNodeView] Rendering waveform', {
+      console.log("[PixiAnalyserNodeView] Rendering waveform", {
         visibleSamplesLength: visibleSamples.length,
         barsLength: barsRef.current.length,
         samplesToRender,
         barWidth,
-        canvasWidth: dimensions.width,
+        canvasWidth: dimensions.width
       });
 
       for (let i = 0; i < samplesToRender; i++) {
@@ -301,7 +312,7 @@ export default function PixiAnalyserNodeView({
         bar.roundRect(x, y, barWidth, height, radius);
 
         // Full opacity for better visibility
-        bar.fill({ color: barColor, alpha: 1 });
+        bar.fill({color: barColor, alpha: 1});
       }
     }
 
@@ -316,7 +327,7 @@ export default function PixiAnalyserNodeView({
     playbackPosition,
     totalDuration,
     currentDuration,
-    bookmarkColor,
+    bookmarkColor
   ]);
 
   // Render bookmark markers (Samsung Recorder style - minimalist, mobile-optimized)
@@ -343,7 +354,7 @@ export default function PixiAnalyserNodeView({
       visibleEndMs = duration;
     }
 
-    bookmarks.forEach((bookmark) => {
+    bookmarks.forEach(bookmark => {
       // For timeline mode, only show bookmarks in the visible window
       if (visualizationMode.type === "timeline") {
         if (
@@ -376,7 +387,7 @@ export default function PixiAnalyserNodeView({
       const line = new PIXI.Graphics();
       line.moveTo(0, 0);
       line.lineTo(0, dimensions.height);
-      line.stroke({ width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85 });
+      line.stroke({width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85});
 
       // Hit area (wider for touch devices, invisible)
       const hitArea = new PIXI.Graphics();
@@ -386,7 +397,7 @@ export default function PixiAnalyserNodeView({
         TOUCH_TARGET_WIDTH,
         dimensions.height
       );
-      hitArea.fill({ color: 0x000000, alpha: 0 });
+      hitArea.fill({color: 0x000000, alpha: 0});
 
       hitArea.interactive = true;
       hitArea.cursor = "pointer";
@@ -407,14 +418,14 @@ export default function PixiAnalyserNodeView({
         line.clear();
         line.moveTo(0, 0);
         line.lineTo(0, dimensions.height);
-        line.stroke({ width: LINE_WIDTH + 1, color: bookmarkColor, alpha: 1 });
+        line.stroke({width: LINE_WIDTH + 1, color: bookmarkColor, alpha: 1});
       });
 
       hitArea.on("pointerout", () => {
         line.clear();
         line.moveTo(0, 0);
         line.lineTo(0, dimensions.height);
-        line.stroke({ width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85 });
+        line.stroke({width: LINE_WIDTH, color: bookmarkColor, alpha: 0.85});
       });
 
       hitArea.on("pointerdown", () => {
@@ -436,7 +447,7 @@ export default function PixiAnalyserNodeView({
     totalDuration,
     onBookmarkClick,
     bookmarkColor,
-    visualizationMode,
+    visualizationMode
   ]);
 
   return (
@@ -445,7 +456,7 @@ export default function PixiAnalyserNodeView({
       style={{
         width: canvasWidth,
         height: canvasHeight,
-        position: "relative",
+        position: "relative"
       }}
     />
   );

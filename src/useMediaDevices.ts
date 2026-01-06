@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {useCallback, useEffect, useMemo, useState} from "react";
 
 export default function useMediaDevices() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -7,11 +7,11 @@ export default function useMediaDevices() {
   const enumerateDevices = useCallback(() => {
     navigator.mediaDevices
       .enumerateDevices()
-      .then((devices) => {
+      .then(devices => {
         setDevices(devices);
       })
-      .catch((reason) => {
-        console.error('failed to enumerate devices with error: %o', reason);
+      .catch(reason => {
+        console.error("failed to enumerate devices with error: %o", reason);
         setDevices([]);
       })
       .finally(() => {
@@ -19,10 +19,10 @@ export default function useMediaDevices() {
       });
   }, [setDevices, setHasLoadedInitialDevices]);
   useEffect(() => {
-    navigator.mediaDevices.addEventListener('devicechange', enumerateDevices);
+    navigator.mediaDevices.addEventListener("devicechange", enumerateDevices);
     return () => {
       navigator.mediaDevices.removeEventListener(
-        'devicechange',
+        "devicechange",
         enumerateDevices
       );
     };
@@ -31,7 +31,7 @@ export default function useMediaDevices() {
     () => ({
       devices,
       hasLoadedInitialDevices,
-      enumerateDevices,
+      enumerateDevices
     }),
     [enumerateDevices, devices, hasLoadedInitialDevices]
   );

@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
-import useRecorderContext from './useRecorderContext';
-import { setToEncoder } from 'opus-codec-worker/actions/actions';
-import { OPUS_SET_BITRATE } from 'opus-codec-worker/actions/opus';
-import useDebounce from './useDebounce';
+import {useCallback, useMemo, useState} from "react";
+import useRecorderContext from "./useRecorderContext";
+import {setToEncoder} from "opus-codec-worker/actions/actions";
+import {OPUS_SET_BITRATE} from "opus-codec-worker/actions/opus";
+import useDebounce from "./useDebounce";
 
 export default function useRecordings() {
   const recorderContext = useRecorderContext();
@@ -22,11 +22,11 @@ export default function useRecordings() {
         }
         setIsSettingBitrate(true);
         const oldBitrate = recording.bitrate;
-        setRecording((recording) =>
+        setRecording(recording =>
           recording
             ? {
                 ...recording,
-                bitrate: newBitrate,
+                bitrate: newBitrate
               }
             : recording
         );
@@ -34,17 +34,17 @@ export default function useRecordings() {
           .sendMessage(
             setToEncoder(OPUS_SET_BITRATE(recording.encoderId, newBitrate))
           )
-          .then((result) => {
-            if ('failures' in result) {
+          .then(result => {
+            if ("failures" in result) {
               console.error(
-                'failed to set bitrate with failures: %s',
-                result.failures.join(', ')
+                "failed to set bitrate with failures: %s",
+                result.failures.join(", ")
               );
-              setRecording((recording) =>
+              setRecording(recording =>
                 recording
                   ? {
                       ...recording,
-                      bitrate: oldBitrate,
+                      bitrate: oldBitrate
                     }
                   : recording
               );
@@ -59,7 +59,7 @@ export default function useRecordings() {
       setIsSettingBitrate,
       isSettingBitrate,
       recorderContext,
-      recording,
+      recording
     ]
   );
   const [settingMicrophone, setSettingMicrophone] = useState(false);
@@ -70,10 +70,10 @@ export default function useRecordings() {
       }
       setSettingMicrophone(true);
       recorderContext.recorder
-        .then(async (rec) => {
+        .then(async rec => {
           if (rec) {
             if (!rec.setInputDevice(device)) {
-              console.error('failed to set device: %o', device);
+              console.error("failed to set device: %o", device);
             }
           }
         })
@@ -84,24 +84,24 @@ export default function useRecordings() {
     [recorderContext, settingMicrophone, setSettingMicrophone]
   );
   const startRecording = useCallback(
-    ({ device }: { device: MediaDeviceInfo | null }) => {
+    ({device}: {device: MediaDeviceInfo | null}) => {
       if (isStartingToRecord || recording !== null) {
         return;
       }
       setIsStartingToRecord(true);
       Promise.all([
         recorderContext.recorder,
-        recorderContext.audioContext.resume(),
+        recorderContext.audioContext.resume()
       ])
         .then(async ([recorder]) => {
           const result = recorder
-            ? await recorder.start({ device, maxDataBytes: 1024 * 1024 * 1 })
+            ? await recorder.start({device, maxDataBytes: 1024 * 1024 * 1})
             : null;
 
           setRecording(result);
         })
-        .catch((reason) => {
-          console.error('failed to start recording with error: %o', reason);
+        .catch(reason => {
+          console.error("failed to start recording with error: %o", reason);
           setRecording(null);
         })
         .finally(() => {
@@ -113,7 +113,7 @@ export default function useRecordings() {
       setRecording,
       recording,
       isStartingToRecord,
-      setIsStartingToRecord,
+      setIsStartingToRecord
     ]
   );
   const stopRecording = useCallback(() => {
@@ -122,7 +122,7 @@ export default function useRecordings() {
     }
     setIsStoppingToRecord(true);
     recorderContext.recorder
-      .then((recorder) => recorder?.stop())
+      .then(recorder => recorder?.stop())
       .finally(() => {
         setRecording(null);
         setIsStoppingToRecord(false);
@@ -131,7 +131,7 @@ export default function useRecordings() {
     isStoppingToRecord,
     recorderContext,
     setRecording,
-    setIsStoppingToRecord,
+    setIsStoppingToRecord
   ]);
   const recordings = useMemo(
     () => ({
@@ -143,7 +143,7 @@ export default function useRecordings() {
       stopRecording,
       isSettingBitrate,
       setBitrate,
-      isRecording: recording !== null,
+      isRecording: recording !== null
     }),
     [
       recording,
@@ -153,7 +153,7 @@ export default function useRecordings() {
       setMicrophone,
       isStartingToRecord,
       startRecording,
-      stopRecording,
+      stopRecording
     ]
   );
   return recordings;

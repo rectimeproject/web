@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
+import {useCallback, useEffect, useRef} from "react";
+import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 
 interface IRenderingData {
   analyserNode: AnalyserNode<IAudioContext>;
@@ -20,7 +20,7 @@ export default function AnalyserNodeView({
   analyserNode,
   canvasWidth,
   canvasHeight,
-  visualizationMode,
+  visualizationMode
 }: {
   analyserNode: AnalyserNode<IAudioContext> | null;
   isPlaying: boolean;
@@ -28,11 +28,11 @@ export default function AnalyserNodeView({
   canvasWidth?: number | string;
   visualizationMode:
     | {
-        type: 'verticalBars';
+        type: "verticalBars";
         barWidth: number;
       }
     | {
-        type: 'webgl';
+        type: "webgl";
         barWidth: number;
       };
 }) {
@@ -40,7 +40,7 @@ export default function AnalyserNodeView({
 
   const renderingDataRef = useRef<IRenderingData | null>(null);
   const draw = useCallback<FrameRequestCallback>(
-    (now) => {
+    now => {
       const renderingData = renderingDataRef.current;
       if (renderingData === null || isPlaying === null) {
         return;
@@ -56,7 +56,7 @@ export default function AnalyserNodeView({
         return;
       }
       switch (visualizationMode?.type) {
-        case 'verticalBars': {
+        case "verticalBars": {
           /**
            * redraw
            */
@@ -66,7 +66,7 @@ export default function AnalyserNodeView({
             canvas: current,
             context: ctx,
             analyserNode,
-            data,
+            data
           } = renderingData;
 
           ctx.clearRect(0, 0, current.width, current.height);
@@ -74,8 +74,8 @@ export default function AnalyserNodeView({
           analyserNode.getByteFrequencyData(data);
 
           let x = 0;
-          for (const height of data.map((h) => Math.max(h, 10))) {
-            ctx.fillStyle = '#495057';
+          for (const height of data.map(h => Math.max(h, 10))) {
+            ctx.fillStyle = "#495057";
             ctx.fillRect(
               x,
               current.height / 2 - height / 2,
@@ -95,7 +95,7 @@ export default function AnalyserNodeView({
   const clearRenderingDataRef = useCallback(() => {
     const current = renderingDataRef.current;
     if (current !== null && current.frameId !== null) {
-      current.context.fillStyle = '#495057';
+      current.context.fillStyle = "#495057";
       current.context.fillRect(
         0,
         0,
@@ -123,9 +123,9 @@ export default function AnalyserNodeView({
         // analyserNode.smoothingTimeConstant = 0.5;
         const barCount = 64;
         const sliceWidth = canvas.width / barCount;
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext("2d");
         if (context !== null) {
-          console.log('initializing rendering');
+          console.log("initializing rendering");
           renderingDataRef.current = {
             lastTime: null,
             barCount,
@@ -137,7 +137,7 @@ export default function AnalyserNodeView({
             averageBuffer: new Uint8Array(barCount),
             data: new Uint8Array(analyserNode.frequencyBinCount),
             analyserNode,
-            frameId: requestAnimationFrame(draw),
+            frameId: requestAnimationFrame(draw)
           };
         }
       }
@@ -151,5 +151,11 @@ export default function AnalyserNodeView({
     }
   }, [isPlaying, clearRenderingDataRef]);
 
-  return <canvas width={canvasWidth} height={canvasHeight} ref={canvasRef} />;
+  return (
+    <canvas
+      width={canvasWidth}
+      height={canvasHeight}
+      ref={canvasRef}
+    />
+  );
 }

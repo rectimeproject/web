@@ -6,20 +6,20 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from "react";
 import useInterval from "./useInterval";
 import secondsToHumanReadable from "./secondsToHumanReadable";
 import useRecordings from "./useRecordings";
 import useRecorderContext from "./useRecorderContext";
 import useRecorderDatabase from "./useRecorderDatabase";
-import { CodecId } from "opus-codec-worker/actions/actions";
-import { RecorderStateType } from "./Recorder";
-import { filesize } from "filesize";
+import {CodecId} from "opus-codec-worker/actions/actions";
+import {RecorderStateType} from "./Recorder";
+import {filesize} from "filesize";
 import Icon from "./Icon";
 import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
-import { AnalyserNode, IAudioContext } from "standardized-audio-context";
-import { useNavigate } from "react-router";
+import {AnalyserNode, IAudioContext} from "standardized-audio-context";
+import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage";
 import ActivityIndicator from "./ActivityIndicator";
 import useMediaDevices from "./useMediaDevices";
@@ -28,7 +28,7 @@ import useDebounce from "./useDebounce";
 import useRecordingNotes from "./useRecordingNotes";
 import useDebugAudioVisualizer from "./useDebugAudioVisualizer";
 import useTheme from "./useTheme";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 
 export default function RecordingListScreen() {
   const theme = useTheme();
@@ -36,7 +36,7 @@ export default function RecordingListScreen() {
   const recorderContext = useRecorderContext();
   const db = useRecorderDatabase();
   const onStartRecording = useCallback(
-    ({ encoderId }: { encoderId: CodecId }) => {
+    ({encoderId}: {encoderId: CodecId}) => {
       db.getRecordingByEncoderId(encoderId);
     },
     [db]
@@ -61,23 +61,22 @@ export default function RecordingListScreen() {
       ({
         type: "timeline",
         samplesPerSecond: 20,
-        timeWindowSeconds: 10, // Show last 10 seconds (scrolling window)
-      } as const),
+        timeWindowSeconds: 10 // Show last 10 seconds (scrolling window)
+      }) as const,
     []
   );
 
   // Waveform data for timeline visualization
   const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
   const recording =
-    db.recordings.find(
-      (r) => r.encoderId === recordings.recording?.encoderId
-    ) ?? null;
+    db.recordings.find(r => r.encoderId === recordings.recording?.encoderId) ??
+    null;
 
   // Capture waveform data during recording
   useEffect(() => {
     console.log("[RecordScreen] Waveform capture effect triggered", {
       isRecording: recordings.isRecording,
-      hasAnalyserNode: !!analyserNode,
+      hasAnalyserNode: !!analyserNode
     });
 
     if (!recordings.isRecording || !analyserNode) {
@@ -123,7 +122,7 @@ export default function RecordingListScreen() {
         );
       }
 
-      setWaveformSamples((prev) => [...prev, amplitude]);
+      setWaveformSamples(prev => [...prev, amplitude]);
     }, intervalMs);
 
     return () => {
@@ -143,7 +142,7 @@ export default function RecordingListScreen() {
       if (current !== null) {
         setCanvasContainerDimensions({
           width: current.offsetWidth,
-          height: current.offsetHeight,
+          height: current.offsetHeight
         });
       } else {
         setCanvasContainerDimensions(null);
@@ -155,7 +154,7 @@ export default function RecordingListScreen() {
     // if (!db.isGettingRecordings) {
     //   db.getRecordings();
     // }
-    recorderContext.recorder.then((recorder) => {
+    recorderContext.recorder.then(recorder => {
       if (recorder === null) {
         return;
       }
@@ -169,7 +168,7 @@ export default function RecordingListScreen() {
       return recorder;
     });
     return () => {
-      recorderContext.recorder.then(async (recorder) => {
+      recorderContext.recorder.then(async recorder => {
         if (recorder) {
           recorder.off("startRecording", onStartRecording);
         }
@@ -179,15 +178,15 @@ export default function RecordingListScreen() {
 
   useEffect(() => {
     return () => {
-      recorderContext.recorder.then((rec) => rec?.stop());
+      recorderContext.recorder.then(rec => rec?.stop());
     };
   }, [recorderContext]);
-  const { getMoreRecordings } = db;
+  const {getMoreRecordings} = db;
   useLayoutEffect(() => {
     if (!recordingListScrollViewRef.current) {
       return;
     }
-    const { scrollHeight, clientHeight } = recordingListScrollViewRef.current;
+    const {scrollHeight, clientHeight} = recordingListScrollViewRef.current;
     if (scrollHeight === clientHeight) {
       getMoreRecordings();
     }
@@ -241,11 +240,11 @@ export default function RecordingListScreen() {
   const startRecording = useCallback(() => {
     const device =
       (deviceId === null
-        ? mediaDevices.devices.find((d) => d.deviceId === deviceId)
+        ? mediaDevices.devices.find(d => d.deviceId === deviceId)
         : mediaDevices.devices[0]) ?? null;
 
     recordings.startRecording({
-      device,
+      device
     });
   }, [recordings, deviceId, mediaDevices]);
   const appSettings = useAppSettings();
@@ -257,9 +256,9 @@ export default function RecordingListScreen() {
     }
   }, [appSettings, setDeviceId]);
   const onChangeDeviceId = useCallback<ChangeEventHandler<HTMLSelectElement>>(
-    (e) => {
+    e => {
       const device = mediaDevices.devices.find(
-        (d) => d.deviceId === e.target.value
+        d => d.deviceId === e.target.value
       );
       if (device) {
         setDeviceId(device.deviceId);
@@ -285,7 +284,7 @@ export default function RecordingListScreen() {
     }
   }, [navigatorStorage]);
   useEffect(() => {
-    recorderContext.recorder.then((rec) => {
+    recorderContext.recorder.then(rec => {
       const state = rec?.currentState() ?? null;
       console.log(
         "[RecordScreen] Recorder state:",
@@ -314,20 +313,20 @@ export default function RecordingListScreen() {
   const queryClient = useQueryClient();
 
   // Fetch bookmarks using useQuery
-  const { data: recordingBookmarks = [] } = useQuery({
+  const {data: recordingBookmarks = []} = useQuery({
     queryKey: ["recordingBookmarks", recording?.id ?? null],
     queryFn: async () => {
       if (recording === null || !recording.id) return [];
       const notes = await recordingNotes.getRecordingNotesByRecordingId(
         recording.id
       );
-      return notes.map((n) => ({
+      return notes.map(n => ({
         id: n.id,
         durationOffset: n.durationOffset,
-        title: n.title,
+        title: n.title
       }));
     },
-    enabled: recording !== null && !!recording.id,
+    enabled: recording !== null && !!recording.id
   });
 
   const [recentBookmark, setRecentBookmark] = useState(false);
@@ -336,19 +335,19 @@ export default function RecordingListScreen() {
   const createBookmarkMutation = useMutation({
     mutationFn: async ({
       recordingId,
-      duration,
+      duration
     }: {
       recordingId: string;
       duration: number;
     }) => {
       recordingNotes.createRecordingNote(recordingId, duration);
     },
-    onMutate: async ({ duration }) => {
+    onMutate: async ({duration}) => {
       // Optimistic update: add the new bookmark immediately
       const newBookmark = {
         id: crypto.getRandomValues(new Uint32Array(4)).join("-"),
         durationOffset: duration,
-        title: "",
+        title: ""
       };
       queryClient.setQueryData(
         ["recordingBookmarks", recording?.id],
@@ -358,16 +357,16 @@ export default function RecordingListScreen() {
     onSettled: () => {
       // Refetch to ensure data is up to date
       queryClient.invalidateQueries({
-        queryKey: ["recordingBookmarks", recording?.id],
+        queryKey: ["recordingBookmarks", recording?.id]
       });
-    },
+    }
   });
 
   const createRecordingNote = useCallback(() => {
     if (recording !== null) {
       createBookmarkMutation.mutate({
         recordingId: recording.id,
-        duration: recording.duration,
+        duration: recording.duration
       });
 
       // Visual feedback
@@ -396,7 +395,7 @@ export default function RecordingListScreen() {
                           isRecording: recordings.isRecording,
                           hasAnalyserNode: !!analyserNode,
                           waveformSamplesLength: waveformSamples.length,
-                          visualizationMode,
+                          visualizationMode
                         }
                       )}
                       <PixiAnalyserNodeView
@@ -447,7 +446,10 @@ export default function RecordingListScreen() {
                 <div className="flex-fill d-flex align-items-center justify-content-start">
                   {filesize(recordingSizeOrQuota).toString()}
                 </div>
-                <div className="button" onClick={goToRecordingListScreen}>
+                <div
+                  className="button"
+                  onClick={goToRecordingListScreen}
+                >
                   <Icon name="list" />
                 </div>
                 {import.meta.env.DEV && (
@@ -504,7 +506,10 @@ export default function RecordingListScreen() {
             <h4>Additional options</h4>
             {recordings.recording !== null && localBitrate !== null && (
               <div className="mb-3">
-                <label htmlFor="bitrate" className="form-label">
+                <label
+                  htmlFor="bitrate"
+                  className="form-label"
+                >
                   Bitrate
                 </label>
                 <div className="d-flex">
@@ -523,7 +528,10 @@ export default function RecordingListScreen() {
               </div>
             )}
             <div>
-              <label htmlFor="microphone_device" className="form-label">
+              <label
+                htmlFor="microphone_device"
+                className="form-label"
+              >
                 Microphone
               </label>
               <select
@@ -534,9 +542,12 @@ export default function RecordingListScreen() {
               >
                 <option></option>
                 {mediaDevices.devices
-                  .filter((d) => d.kind === "audioinput")
-                  .map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
+                  .filter(d => d.kind === "audioinput")
+                  .map(d => (
+                    <option
+                      key={d.deviceId}
+                      value={d.deviceId}
+                    >
                       {d.label}
                     </option>
                   ))}

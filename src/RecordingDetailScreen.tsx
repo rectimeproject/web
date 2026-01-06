@@ -1,20 +1,20 @@
-import { useParams } from "react-router";
-import { useCallback, useMemo, useState } from "react";
+import {useParams} from "react-router";
+import {useCallback, useMemo, useState} from "react";
 import useRecordingPlayer from "./useRecordingPlayer";
 import ActivityIndicator from "./ActivityIndicator";
-import { DateTime } from "luxon";
+import {DateTime} from "luxon";
 import secondsToHumanReadable from "./secondsToHumanReadable";
 import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
 import Icon from "./Icon";
-import { filesize } from "filesize";
+import {filesize} from "filesize";
 import useTheme from "./useTheme";
-import { useRecordingQuery } from "./hooks/queries/useRecordingQuery";
-import { useRecordingNotesQuery } from "./hooks/queries/useRecordingNotesQuery";
+import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
+import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 
 export default function RecordingDetailScreen() {
   const theme = useTheme();
   const player = useRecordingPlayer();
-  const { recordingId } = useParams<{ recordingId: string }>();
+  const {recordingId} = useParams<{recordingId: string}>();
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
@@ -25,25 +25,23 @@ export default function RecordingDetailScreen() {
     isLoading: isLoadingRecording,
     isError: isRecordingError,
     error: recordingError,
-    refetch: refetchRecording,
+    refetch: refetchRecording
   } = useRecordingQuery(recordingIdOrNull);
 
-  const {
-    data: recordingNotes,
-    isLoading: isLoadingNotes,
-  } = useRecordingNotesQuery(recordingIdOrNull);
+  const {data: recordingNotes, isLoading: isLoadingNotes} =
+    useRecordingNotesQuery(recordingIdOrNull);
 
   const recordingBookmarks = useMemo(() => {
     if (!recordingNotes) return [];
     return recordingNotes.map((n: any) => ({
       id: n.id,
       durationOffset: n.durationOffset,
-      title: n.title,
+      title: n.title
     }));
   }, [recordingNotes]);
 
   const handleBookmarkClick = useCallback(
-    (_bookmark: { id: string; durationOffset: number }) => {
+    (_bookmark: {id: string; durationOffset: number}) => {
       // TODO: Implement seeking functionality in useRecordingPlayer
       // For now, just start playing from the beginning
       if (recording !== null && recording !== undefined) {
@@ -74,7 +72,7 @@ export default function RecordingDetailScreen() {
       if (current !== null) {
         setCanvasContainerDimensions({
           width: current.offsetWidth,
-          height: current.offsetHeight,
+          height: current.offsetHeight
         });
       } else {
         setCanvasContainerDimensions(null);
@@ -163,7 +161,7 @@ export default function RecordingDetailScreen() {
                     <PixiAnalyserNodeView
                       visualizationMode={{
                         type: "frequency",
-                        barCount: 64,
+                        barCount: 64
                       }}
                       canvasHeight={256}
                       canvasWidth={canvasContainerDimensions.width}
@@ -171,7 +169,9 @@ export default function RecordingDetailScreen() {
                       analyserNode={player.analyserNode()}
                       bookmarks={recordingBookmarks}
                       currentDuration={
-                        player.playing?.cursor ? player.playing.cursor * 1000 : 0
+                        player.playing?.cursor
+                          ? player.playing.cursor * 1000
+                          : 0
                       }
                       totalDuration={recording?.duration}
                       onBookmarkClick={handleBookmarkClick}
@@ -180,15 +180,18 @@ export default function RecordingDetailScreen() {
                       bookmarkColor={theme.colors.bookmarkColor}
                       waveformSamples={[]}
                       playbackPosition={
-                        player.playing?.cursor ? player.playing.cursor * 1000 : 0
+                        player.playing?.cursor
+                          ? player.playing.cursor * 1000
+                          : 0
                       }
                     />
                   ) : null}
-                  {player.playing !== null && player.playing.cursor !== null && (
-                    <div className="duration">
-                      {secondsToHumanReadable(player.playing.cursor)}
-                    </div>
-                  )}
+                  {player.playing !== null &&
+                    player.playing.cursor !== null && (
+                      <div className="duration">
+                        {secondsToHumanReadable(player.playing.cursor)}
+                      </div>
+                    )}
                 </div>
               </div>
             </>

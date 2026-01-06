@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useRecorderDatabaseContext } from './RecorderDatabaseContext';
-import { IPaginationFilter, RecordingV1 } from './RecorderDatabase';
-import useThrottle from './useThrottle';
+import {useCallback, useMemo, useState} from "react";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
+import {IPaginationFilter, RecordingV1} from "./RecorderDatabase";
+import useThrottle from "./useThrottle";
 
 export default function useRecorderDatabase() {
   const database = useRecorderDatabaseContext();
@@ -25,10 +25,10 @@ export default function useRecorderDatabase() {
         database
           .getAll({
             offset: 0,
-            limit: 10,
+            limit: 10
           })
-          .then((newRecordings) => {
-            console.log('initial recordings: %o', newRecordings);
+          .then(newRecordings => {
+            console.log("initial recordings: %o", newRecordings);
             setRecordings(newRecordings ? newRecordings : []);
           })
           .finally(() => {
@@ -41,12 +41,12 @@ export default function useRecorderDatabase() {
       setRecordings,
       isGettingRecordings,
       setIsGettingRecordings,
-      database,
+      database
     ]
   );
   const [, setPaginationFilter] = useState<IPaginationFilter>({
     offset: 0,
-    limit: 10,
+    limit: 10
   });
   const getMoreRecordings = useCallback(() => {
     const fn = async () => {
@@ -56,23 +56,23 @@ export default function useRecorderDatabase() {
       setIsGettingRecordings(true);
       const newRecordings = await database.getAll({
         offset: recordings.length,
-        limit: recordings.length + 10,
+        limit: recordings.length + 10
       });
       if (newRecordings === null) {
         setIsFinished(false);
         return true;
       }
-      setRecordings((oldRecordings) => [...oldRecordings, ...newRecordings]);
+      setRecordings(oldRecordings => [...oldRecordings, ...newRecordings]);
       const offset = newRecordings.length + recordings.length;
       setPaginationFilter({
         offset,
-        limit: offset + 10,
+        limit: offset + 10
       });
       setIsFinished(newRecordings.length === 0);
       return true;
     };
     debounce.run(() => {
-      fn().then((result) => {
+      fn().then(result => {
         if (result) setIsGettingRecordings(false);
       });
     });
@@ -84,7 +84,7 @@ export default function useRecorderDatabase() {
     setIsGettingRecordings,
     isGettingRecordings,
     setRecordings,
-    setPaginationFilter,
+    setPaginationFilter
   ]);
   const [loadingRecordIds, setLoadingRecordIds] = useState<string[]>([]);
   const [updatingRecordingIds, setUpdatingRecordingIds] = useState<string[]>(
@@ -92,9 +92,9 @@ export default function useRecorderDatabase() {
   );
   const updateRecordingState = useCallback(
     (newRecording: RecordingV1) => {
-      setRecordings((recordings) =>
-        recordings.some((r) => r.id === newRecording.id)
-          ? recordings.map((r2) =>
+      setRecordings(recordings =>
+        recordings.some(r => r.id === newRecording.id)
+          ? recordings.map(r2 =>
               r2.id === newRecording.id ? newRecording : r2
             )
           : [newRecording, ...recordings]
@@ -105,7 +105,7 @@ export default function useRecorderDatabase() {
   const getRecording = useCallback(
     (id: string) => {
       debounce.run(async () => {
-        setLoadingRecordIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+        setLoadingRecordIds(ids => (ids.includes(id) ? ids : [...ids, id]));
 
         try {
           const newRecording = await database.get(id);
@@ -114,7 +114,7 @@ export default function useRecorderDatabase() {
           }
           updateRecordingState(newRecording);
         } finally {
-          setLoadingRecordIds((ids) => ids.filter((id2) => id2 !== id));
+          setLoadingRecordIds(ids => ids.filter(id2 => id2 !== id));
         }
       });
     },
@@ -125,31 +125,29 @@ export default function useRecorderDatabase() {
       if (updatingRecordingIds.includes(recording.id)) {
         return;
       }
-      setUpdatingRecordingIds((ids) => [...ids, recording.id]);
+      setUpdatingRecordingIds(ids => [...ids, recording.id]);
       database
-        .transaction('recordings', 'readwrite')
-        .objectStore('recordings')
+        .transaction("recordings", "readwrite")
+        .objectStore("recordings")
         .put(recording)
         .then(async () => {
           const newRecording = await database
-            .transaction('recordings', 'readonly')
-            .objectStore('recordings')
+            .transaction("recordings", "readonly")
+            .objectStore("recordings")
             .get(recording.id);
           if (newRecording !== null) {
             updateRecordingState(newRecording);
           }
         })
         .finally(() => {
-          setUpdatingRecordingIds((ids) =>
-            ids.filter((id) => id !== recording.id)
-          );
+          setUpdatingRecordingIds(ids => ids.filter(id => id !== recording.id));
         });
     },
     [
       updatingRecordingIds,
       updateRecordingState,
       setUpdatingRecordingIds,
-      database,
+      database
     ]
   );
   const getRecordingByEncoderId = useCallback(
@@ -175,7 +173,7 @@ export default function useRecorderDatabase() {
       isFinished,
       getRecordings,
       getMoreRecordings,
-      updatingRecordingIds,
+      updatingRecordingIds
     }),
     [
       updatingRecordingIds,
@@ -188,7 +186,7 @@ export default function useRecorderDatabase() {
       isFinished,
       isGettingRecordings,
       getRecordings,
-      getMoreRecordings,
+      getMoreRecordings
     ]
   );
 }
