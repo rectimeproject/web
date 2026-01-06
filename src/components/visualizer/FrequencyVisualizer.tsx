@@ -2,6 +2,7 @@ import {useEffect, useRef} from "react";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import PixiVisualizerBase from "./PixiVisualizerBase";
 import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars";
+import useTheme from "../../useTheme";
 import * as PIXI from "pixi.js";
 
 interface FrequencyVisualizerProps {
@@ -9,9 +10,6 @@ interface FrequencyVisualizerProps {
   isPlaying: boolean;
   canvasWidth?: number | string;
   canvasHeight?: number | string;
-  backgroundColor?: number;
-  barColor?: number;
-  backdropColor?: number;
   barCount?: number;
 }
 
@@ -24,19 +22,23 @@ export default function FrequencyVisualizer({
   isPlaying,
   canvasWidth = "100%",
   canvasHeight = 256,
-  backgroundColor = 0xe9ecef,
-  barColor = 0x495057,
-  backdropColor = 0xd1d5db,
   barCount = 64
 }: FrequencyVisualizerProps) {
   const backdropsRef = useRef<PIXI.Graphics[]>([]);
   const scrollOffsetRef = useRef(0);
+  const {colors} = useTheme();
+
+  // Derive backdrop color from bar color (lighter/darker based on theme)
+  const backdropColor =
+    colors.barColor === 0x1d1d1f
+      ? 0xd1d5db // Light theme: use light gray backdrop
+      : 0x3a3a3c; // Dark theme: use darker gray backdrop
 
   return (
     <PixiVisualizerBase
       canvasWidth={canvasWidth}
       canvasHeight={canvasHeight}
-      backgroundColor={backgroundColor}
+      backgroundColor={colors.background}
     >
       {({barsContainerRef, isPixiReady, dimensions}) => {
         const barsRef = useVisualizerBars({
@@ -85,31 +87,45 @@ export default function FrequencyVisualizer({
           analyserNode.maxDecibels = -10;
 
           const data = new Uint8Array(analyserNode.frequencyBinCount);
-          const barSpacing = 2;
-          // Fixed bar width based on canvas width as reference
-          const barWidth = 6;
+          const barSpacing = 4;
+          const barWidth = 8;
           let frameId: number;
 
           const draw = () => {
             analyserNode.getByteFrequencyData(data);
 
+            // Auto-scroll effect: move bars to the left over time
+            scrollOffsetRef.current += 0.5;
+            if (scrollOffsetRef.current >= barWidth + barSpacing) {
+              scrollOffsetRef.current = 0;
+            }
+
             barsRef.current.forEach((bar, i) => {
               const rawHeight = data[i] ?? 0;
-              // Bars grow from center, occupying up to 80% of canvas height total
+              // Bars occupy 80% of canvas height
               const maxBarHeight = dimensions.height * 0.8;
-              const minBarHeight = 4;
-              const height = Math.max(
-                (rawHeight / 255) * maxBarHeight,
-                minBarHeight
-              );
-              const x = i * (barWidth + barSpacing);
-              // Position bar from vertical center, growing up and down equally
+              const minBarHeight = 8;
+              const normalizedHeight = (rawHeight / 255) * maxBarHeight;
+              const height = Math.max(normalizedHeight, minBarHeight);
+
+              const x = i * (barWidth + barSpacing) - scrollOffsetRef.current;
               const centerY = dimensions.height / 2;
               const y = centerY - height / 2;
 
+              // Draw backdrop (full height at 80%)
+              const backdrop = backdropsRef.current[i];
+              if (backdrop) {
+                const backdropHeight = maxBarHeight;
+                const backdropY = centerY - backdropHeight / 2;
+                backdrop.clear();
+                backdrop.rect(x, backdropY, barWidth, backdropHeight);
+                backdrop.fill(backdropColor);
+              }
+
+              // Draw actual frequency bar
               bar.clear();
               bar.rect(x, y, barWidth, height);
-              bar.fill(barColor);
+              bar.fill(colors.barColor);
             });
 
             frameId = requestAnimationFrame(draw);
@@ -120,8 +136,16 @@ export default function FrequencyVisualizer({
           return () => {
             cancelAnimationFrame(frameId);
             barsRef.current.forEach(bar => bar.clear());
+            backdropsRef.current.forEach(backdrop => backdrop.clear());
           };
-        }, [analyserNode, isPlaying, dimensions, barColor, barsRef]);
+        }, [
+          analyserNode,
+          isPlaying,
+          dimensions,
+          colors.barColor,
+          backdropColor,
+          barsRef
+        ]);
 
         return null;
       }}
