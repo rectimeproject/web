@@ -1,5 +1,6 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import type {Config} from "tailwindcss";
+
+const config: Config = {
   darkMode: "media", // Use system preference instead of manual class
   content: ["./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
@@ -46,7 +47,7 @@ module.exports = {
         "xl-apple": "0 16px 32px -8px rgb(0 0 0 / 0.12)"
       },
       transitionDuration: {
-        150: "150ms"
+        "150": "150ms"
       },
       transitionTimingFunction: {
         apple: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -56,7 +57,7 @@ module.exports = {
         xl: "20px"
       },
       backdropSaturate: {
-        150: "1.5"
+        "150": "1.5"
       },
       keyframes: {
         "pulse-recording": {
@@ -89,10 +90,12 @@ module.exports = {
         slideUp: "slideUp 300ms cubic-bezier(0.4, 0, 0.2, 1)"
       },
       scale: {
-        98: "0.98",
-        120: "1.2"
+        "98": "0.98",
+        "120": "1.2"
       }
     }
   },
   plugins: []
 };
+
+export default config;

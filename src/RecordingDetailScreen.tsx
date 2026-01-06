@@ -179,7 +179,17 @@ export default function RecordingDetailScreen() {
                   canvasWidth={canvasContainerDimensions.width}
                   samplesPerSecond={20}
                   timeWindowSeconds={5}
-                  waveformSamples={[]}
+                  waveformSamples={
+                    // Generate a simple waveform pattern for visualization during playback
+                    // since we don't store waveform data with recordings yet
+                    player.playing !== null
+                      ? Array.from(
+                          {length: 100},
+                          (_, i) =>
+                            80 + Math.sin(i * 0.3) * 40 + Math.random() * 30
+                        )
+                      : []
+                  }
                   bookmarks={recordingBookmarks}
                   currentDuration={
                     player.playing?.cursor ? player.playing.cursor * 1000 : 0
