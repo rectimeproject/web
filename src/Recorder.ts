@@ -394,7 +394,15 @@ export default class Recorder extends EventEmitter<{
           }
           if (result) {
             if (result.value.encoded === null) {
-              // Encoder returned null - this is normal when there's not enough data for a full frame
+              // Encoder returned null - this is normal when there's not enough data for a full frame.
+              // Keep a debug-level log to aid troubleshooting if partial frames cause issues in production.
+              if (typeof console.debug === "function") {
+                console.debug(
+                  "Encoder returned null (not enough data for full frame); pcmLength=%d, encoderId=%s",
+                  pcm.length,
+                  encoderId.value
+                );
+              }
               return;
             }
             this.emit("encoded", {
