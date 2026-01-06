@@ -397,11 +397,11 @@ export default function useRecordingPlayer() {
   return useMemo(
     () => ({
       play,
-      analyserNode: () => stateRef.current?.analyserNode ?? null,
+      analyserNode: stateRef.current?.analyserNode ?? null,
       playing,
       pause,
       seek
     }),
-    [play, pause, playing, seek]
+    [play, pause, playing, seek, stateRef.current?.analyserNode]
   );
 }

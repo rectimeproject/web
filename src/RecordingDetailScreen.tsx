@@ -15,6 +15,7 @@ import {
   useUpdateRecordingNoteMutation,
   useDeleteRecordingNoteMutation
 } from "./hooks/queries/useRecordingNotesMutations";
+import usePlaybackWaveform from "./usePlaybackWaveform";
 
 export default function RecordingDetailScreen() {
   const theme = useTheme();
@@ -23,6 +24,12 @@ export default function RecordingDetailScreen() {
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
+
+  // Capture real-time waveform data during playback
+  const waveformSamples = usePlaybackWaveform(
+    player.analyserNode,
+    player.playing !== null
+  );
 
   // Fetch recording and bookmarks using React Query
   const {
@@ -179,17 +186,7 @@ export default function RecordingDetailScreen() {
                   canvasWidth={canvasContainerDimensions.width}
                   samplesPerSecond={20}
                   timeWindowSeconds={5}
-                  waveformSamples={
-                    // Generate a simple waveform pattern for visualization during playback
-                    // since we don't store waveform data with recordings yet
-                    player.playing !== null
-                      ? Array.from(
-                          {length: 100},
-                          (_, i) =>
-                            80 + Math.sin(i * 0.3) * 40 + Math.random() * 30
-                        )
-                      : []
-                  }
+                  waveformSamples={waveformSamples}
                   bookmarks={recordingBookmarks}
                   currentDuration={
                     player.playing?.cursor ? player.playing.cursor * 1000 : 0
