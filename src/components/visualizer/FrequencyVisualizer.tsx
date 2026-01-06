@@ -1,7 +1,8 @@
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import PixiVisualizerBase from "./PixiVisualizerBase";
 import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars";
+import * as PIXI from "pixi.js";
 
 interface FrequencyVisualizerProps {
   analyserNode: AnalyserNode<IAudioContext> | null;
@@ -10,12 +11,13 @@ interface FrequencyVisualizerProps {
   canvasHeight?: number | string;
   backgroundColor?: number;
   barColor?: number;
+  backdropColor?: number;
   barCount?: number;
 }
 
 /**
  * Frequency visualization component
- * Displays real-time FFT frequency spectrum
+ * Displays real-time FFT frequency spectrum with scrolling bars
  */
 export default function FrequencyVisualizer({
   analyserNode,
@@ -24,8 +26,12 @@ export default function FrequencyVisualizer({
   canvasHeight = 256,
   backgroundColor = 0xe9ecef,
   barColor = 0x495057,
+  backdropColor = 0xd1d5db,
   barCount = 64
 }: FrequencyVisualizerProps) {
+  const backdropsRef = useRef<PIXI.Graphics[]>([]);
+  const scrollOffsetRef = useRef(0);
+
   return (
     <PixiVisualizerBase
       canvasWidth={canvasWidth}
@@ -38,6 +44,37 @@ export default function FrequencyVisualizer({
           isPixiReady,
           barsContainerRef
         });
+
+        // Create backdrop bars
+        useEffect(() => {
+          if (!isPixiReady || !barsContainerRef.current) return;
+
+          const container = barsContainerRef.current;
+
+          // Clear existing backdrops
+          backdropsRef.current.forEach(backdrop => {
+            container.removeChild(backdrop);
+            backdrop.destroy();
+          });
+          backdropsRef.current = [];
+
+          // Create backdrop bars
+          const backdrops: PIXI.Graphics[] = [];
+          for (let i = 0; i < barCount; i++) {
+            const backdrop = new PIXI.Graphics();
+            container.addChildAt(backdrop, i); // Add behind the actual bars
+            backdrops.push(backdrop);
+          }
+          backdropsRef.current = backdrops;
+
+          return () => {
+            backdropsRef.current.forEach(backdrop => {
+              container.removeChild(backdrop);
+              backdrop.destroy();
+            });
+            backdropsRef.current = [];
+          };
+        }, [isPixiReady, barsContainerRef, barCount]);
 
         // Frequency mode rendering effect
         useEffect(() => {
