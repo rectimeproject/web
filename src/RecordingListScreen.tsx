@@ -136,32 +136,34 @@ export default function RecordingListScreen() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-12">
       {!recordingsWithHandlers.length ? (
         <div className="text-center text-gray-600 dark:text-gray-400">
-          No recordings yet. <Link to="/" className="text-blue-600 dark:text-blue-400 hover:underline">Record</Link> something!
+          No recordings yet. <Link to="/" className="text-blue-500 dark:text-blue-400 hover:underline">Record</Link> something!
         </div>
       ) : (
         <>
           {recordingsWithHandlers.map(r => (
             <div
               key={r.id}
-              className="flex items-center gap-4 p-4 mb-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+              className="flex items-center gap-6 p-6 mb-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
             >
+              <div className="text-sm font-mono text-gray-500 dark:text-gray-400 tracking-tight">
+                {DateTime.fromJSDate(r.createdAt).toLocaleString(
+                  DateTime.DATETIME_SHORT
+                )}
+              </div>
+              <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+              <div className="text-sm font-mono text-gray-500 dark:text-gray-400">
+                {secondsToHumanReadable(r.duration / 1000)}
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
-                    DateTime.DATETIME_SHORT
-                  )} | ${secondsToHumanReadable(r.duration / 1000)}`}
-                </div>
-                <div>
-                  <input
-                    value={newRecordingNames.get(r.id) ?? r.name}
-                    onChange={r.onChangeNewRecordingName}
-                    className="text-lg font-medium bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 -mx-2 w-full"
-                    disabled={updateRecordingMutation.isPending}
-                  />
-                </div>
+                <input
+                  value={newRecordingNames.get(r.id) ?? r.name}
+                  onChange={r.onChangeNewRecordingName}
+                  className="text-lg font-medium bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 rounded-lg px-3 py-2 -mx-3 w-full transition-all duration-150"
+                  disabled={updateRecordingMutation.isPending}
+                />
               </div>
               <div className="flex-shrink-0">
                 {updateRecordingMutation.isPending ? (
@@ -169,10 +171,10 @@ export default function RecordingListScreen() {
                 ) : (
                   <button
                     onClick={r.onClickPlay}
-                    className="p-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
                     aria-label="Play recording"
                   >
-                    <Icon name="headphones" />
+                    <Icon name="play_arrow" />
                   </button>
                 )}
               </div>

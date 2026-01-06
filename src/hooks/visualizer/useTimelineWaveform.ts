@@ -41,7 +41,11 @@ export function useTimelineWaveform({
     if (waveformSamples.length === 0) {
       console.log("[useTimelineWaveform] No waveform samples, clearing bars");
       // Clear all bars and return
-      barsRef.current.forEach(bar => bar.clear());
+      barsRef.current.forEach(bar => {
+        if (bar && !bar.destroyed) {
+          bar.clear();
+        }
+      });
       return;
     }
 
@@ -63,7 +67,11 @@ export function useTimelineWaveform({
     );
 
     // Clear all bars first
-    barsRef.current.forEach(bar => bar.clear());
+    barsRef.current.forEach(bar => {
+      if (bar && !bar.destroyed) {
+        bar.clear();
+      }
+    });
 
     // Render visible waveform bars (only as many as we have bars for)
     const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
@@ -80,8 +88,12 @@ export function useTimelineWaveform({
       const amplitude = visibleSamples[i] ?? null;
       const bar = barsRef.current[i] ?? null;
 
-      if (bar === null || amplitude === null) {
-        console.warn("Bar or amplitude data missing");
+      if (bar === null || amplitude === null || bar.destroyed) {
+        if (bar?.destroyed) {
+          console.warn("Bar has been destroyed, skipping");
+        } else {
+          console.warn("Bar or amplitude data missing");
+        }
         continue;
       }
 

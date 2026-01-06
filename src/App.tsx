@@ -42,9 +42,9 @@ function App({children}: PropsWithChildren<{}>) {
   }, [onResize]);
   return (
     <DeviceDimensionsContext.Provider value={dimensions}>
-      <div>
+      <div className="min-h-screen flex flex-col bg-white dark:bg-black transition-colors duration-300">
         <NavigationBar />
-        <div className="mt-3">{children}</div>
+        <main className="flex-1">{children}</main>
       </div>
     </DeviceDimensionsContext.Provider>
   );

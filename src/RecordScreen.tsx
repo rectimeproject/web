@@ -321,6 +321,7 @@ export default function RecordingListScreen() {
   });
 
   const [recentBookmark, setRecentBookmark] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Create bookmark using useMutation
   const createBookmarkMutation = useMutation({
@@ -366,181 +367,202 @@ export default function RecordingListScreen() {
     }
   }, [recording, createBookmarkMutation]);
   return (
-    <div className="recording-list-screen">
-      <div className="container">
-        <div className="row">
-          <div className="d-flex col-md-8">
-            <div className="d-flex flex-column flex-fill">
-              <div className="flex-fill">
-                <div
-                  className="canvas-container d-flex justify-content-end flex-fill"
-                  ref={onCanvasContainerElementMount}
-                >
-                  {canvasContainerDimensions !== null ? (
-                    <>
-                      {console.log(
-                        "[RecordScreen] Rendering TimelineVisualizer",
-                        {
-                          canvasWidth: canvasContainerDimensions.width,
-                          canvasHeight: 256,
-                          isRecording: recordings.isRecording,
-                          hasAnalyserNode: !!analyserNode,
-                          waveformSamplesLength: waveformSamples.length
-                        }
-                      )}
-                      <TimelineVisualizer
-                        canvasWidth={canvasContainerDimensions.width}
-                        canvasHeight={256}
-                        samplesPerSecond={20}
-                        timeWindowSeconds={10}
-                        waveformSamples={waveformSamples}
-                        bookmarks={recordingBookmarks}
-                        currentDuration={recording?.duration ?? 0}
-                        totalDuration={recording?.duration}
-                        backgroundColor={theme.colors.background}
-                        barColor={theme.colors.barColor}
-                        bookmarkColor={theme.colors.bookmarkColor}
-                      />
-                    </>
-                  ) : null}
-                </div>
-              </div>
-              <div className="d-flex align-items-center">
-                <div className="flex-fill d-flex align-items-center justify-content-end">
-                  {secondsToHumanReadable(
-                    recording !== null ? recording.duration / 1000 : 0
-                  )}
-                </div>
-                <div className="flex-fill d-flex justify-content-center">
-                  <div
-                    className="record-button"
-                    onClick={
-                      recordings.isRecording
-                        ? recordings.stopRecording
-                        : startRecording
-                    }
-                  >
-                    {recordings.isStoppingToRecord ||
-                    recordings.isStartingToRecord ? (
-                      <ActivityIndicator />
-                    ) : (
-                      <Icon name={recordings.isRecording ? "stop" : "mic"} />
-                    )}
-                  </div>
-                </div>
-                <div className="flex-fill d-flex align-items-center justify-content-start">
-                  {filesize(recordingSizeOrQuota).toString()}
-                </div>
-                <div
-                  className="button"
-                  onClick={goToRecordingListScreen}
-                >
-                  <Icon name="list" />
-                </div>
-                {import.meta.env.DEV && (
-                  <div
-                    className="button"
-                    onClick={
-                      debugAudioVisualizer.isDebugging
-                        ? debugAudioVisualizer.stop
-                        : debugAudioVisualizer.start
-                    }
-                  >
-                    <Icon
-                      name={
-                        debugAudioVisualizer.isDebugging
-                          ? "close"
-                          : "remove_red_eye"
-                      }
-                    />
-                  </div>
-                )}
-                {recordings.recording !== null && (
-                  <div
-                    className={`button ${
-                      recentBookmark ? "bookmark-created" : ""
-                    }`}
-                    onClick={createRecordingNote}
-                  >
-                    <Icon name="add" />
-                  </div>
-                )}
-              </div>
+    <div className="record-screen">
+      {/* Visualizer Section - Full height with centered content */}
+      <div className="record-screen__visualizer-section">
+        <div
+          className="record-screen__visualizer-container"
+          ref={onCanvasContainerElementMount}
+        >
+          {canvasContainerDimensions !== null ? (
+            <TimelineVisualizer
+              canvasWidth="100%"
+              canvasHeight={448}
+              samplesPerSecond={20}
+              timeWindowSeconds={10}
+              waveformSamples={waveformSamples}
+              bookmarks={recordingBookmarks}
+              currentDuration={recording?.duration ?? 0}
+              totalDuration={recording?.duration}
+              backgroundColor={theme.colors.background}
+              barColor={theme.colors.barColor}
+              bookmarkColor={theme.colors.bookmarkColor}
+            />
+          ) : null}
+        </div>
 
-              {/* <div className="d-flex recording-list-screen-bottom-bar">
-                <div className="button" onClick={goToRecordingListScreen}>
-                  <Icon name="list" />
-                </div>
-                {import.meta.env.DEV && (
-                  <div className="button" onClick={debugAudioVisualizer.start}>
-                    <Icon name="leaderboard" />
-                  </div>
-                )}
-                <div className="button" onClick={goToRecordingListScreen}>
-                  <Icon name="list" />
-                </div>
-                {recordings.recording !== null && (
-                  <div className="button" onClick={createRecordingNote}>
-                    <Icon name="add" />
-                  </div>
-                )}
-              </div> */}
-            </div>
-          </div>
-          <div className="col-md-4">
-            <h4>Additional options</h4>
-            {recordings.recording !== null && localBitrate !== null && (
-              <div className="mb-3">
-                <label
-                  htmlFor="bitrate"
-                  className="form-label"
-                >
-                  Bitrate
-                </label>
-                <div className="d-flex">
-                  <input
-                    type="range"
-                    id="bitrate"
-                    className="form-range flex-fill"
-                    onChange={onChangeBitrate}
-                    value={localBitrate}
-                    min={8000}
-                    step={1000}
-                    max={96000}
-                  />
-                  <div className="mx-3">{localBitrate}</div>
-                </div>
-              </div>
+        {/* Metadata Overlay on Visualizer */}
+        <div className="record-screen__metadata-overlay">
+          <div className="record-screen__duration">
+            {secondsToHumanReadable(
+              recording !== null ? recording.duration / 1000 : 0
             )}
-            <div>
-              <label
-                htmlFor="microphone_device"
-                className="form-label"
-              >
-                Microphone
-              </label>
-              <select
-                id="microphone_device"
-                className="form-select"
-                onChange={onChangeDeviceId}
-                value={deviceId ?? ""}
-              >
-                <option></option>
-                {mediaDevices.devices
-                  .filter(d => d.kind === "audioinput")
-                  .map(d => (
-                    <option
-                      key={d.deviceId}
-                      value={d.deviceId}
-                    >
-                      {d.label}
-                    </option>
-                  ))}
-              </select>
-            </div>
+          </div>
+          <div className="record-screen__filesize">
+            {filesize(recordingSizeOrQuota).toString()}
           </div>
         </div>
       </div>
+
+      {/* Control Bar - Bottom Fixed */}
+      <div className="record-screen__control-bar">
+        <div className="record-screen__control-bar-inner">
+          {/* Left: Settings button */}
+          <button
+            className="control-button control-button--ghost"
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="Settings"
+          >
+            <Icon name="settings" />
+          </button>
+
+          {/* Center: Record button */}
+          <button
+            className={`record-button ${
+              recordings.isRecording ? "record-button--recording" : ""
+            }`}
+            onClick={
+              recordings.isRecording
+                ? recordings.stopRecording
+                : startRecording
+            }
+            aria-label={recordings.isRecording ? "Stop recording" : "Start recording"}
+          >
+            <div className="record-button__contents">
+              {recordings.isStoppingToRecord ||
+              recordings.isStartingToRecord ? (
+                <ActivityIndicator />
+              ) : (
+                <Icon name={recordings.isRecording ? "stop" : "mic"} />
+              )}
+            </div>
+          </button>
+
+          {/* Right: Actions */}
+          <div className="control-button-group">
+            {recordings.recording !== null && (
+              <button
+                className={`control-button ${
+                  recentBookmark ? "control-button--success" : ""
+                }`}
+                onClick={createRecordingNote}
+                aria-label="Add bookmark"
+              >
+                <Icon name="bookmark_add" />
+              </button>
+            )}
+
+            <button
+              className="control-button"
+              onClick={goToRecordingListScreen}
+              aria-label="View recordings list"
+            >
+              <Icon name="list" />
+            </button>
+
+            {import.meta.env.DEV && (
+              <button
+                className="control-button"
+                onClick={
+                  debugAudioVisualizer.isDebugging
+                    ? debugAudioVisualizer.stop
+                    : debugAudioVisualizer.start
+                }
+                aria-label={
+                  debugAudioVisualizer.isDebugging
+                    ? "Close debug visualizer"
+                    : "Open debug visualizer"
+                }
+              >
+                <Icon
+                  name={
+                    debugAudioVisualizer.isDebugging
+                      ? "close"
+                      : "remove_red_eye"
+                  }
+                />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Settings Panel (Slide-up modal) */}
+      {showSettings && (
+        <div className="settings-panel">
+          <div
+            className="settings-panel__backdrop"
+            onClick={() => setShowSettings(false)}
+          />
+          <div className="settings-panel__content">
+            <div className="settings-panel__header">
+              <h3>Settings</h3>
+              <button
+                className="control-button control-button--ghost"
+                onClick={() => setShowSettings(false)}
+                aria-label="Close settings"
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+
+            <div className="settings-panel__body">
+              {recordings.recording !== null && localBitrate !== null && (
+                <div className="settings-panel__section">
+                  <label
+                    htmlFor="bitrate"
+                    className="settings-panel__label"
+                  >
+                    Bitrate
+                  </label>
+                  <div className="settings-panel__bitrate-control">
+                    <input
+                      type="range"
+                      id="bitrate"
+                      className="settings-panel__slider"
+                      onChange={onChangeBitrate}
+                      value={localBitrate}
+                      min={8000}
+                      step={1000}
+                      max={96000}
+                    />
+                    <div className="settings-panel__bitrate-value">
+                      {localBitrate}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="settings-panel__section">
+                <label
+                  htmlFor="microphone_device"
+                  className="settings-panel__label"
+                >
+                  Microphone
+                </label>
+                <select
+                  id="microphone_device"
+                  className="settings-panel__select"
+                  onChange={onChangeDeviceId}
+                  value={deviceId ?? ""}
+                >
+                  <option value="">Select microphone</option>
+                  {mediaDevices.devices
+                    .filter(d => d.kind === "audioinput")
+                    .map(d => (
+                      <option
+                        key={d.deviceId}
+                        value={d.deviceId}
+                      >
+                        {d.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

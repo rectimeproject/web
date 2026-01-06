@@ -1,3 +1,9 @@
+// Import Tailwind first
+@import "./styles/global.css";
+
+// Import design tokens
+@import "./styles/design-tokens.css";
+
 // Theme variables
 :root {
   // Light theme (default)
@@ -15,33 +21,66 @@
   --duration-text: #ffffff;
 }
 
-[data-theme="dark"] {
-  // Dark theme
-  --bg-primary: #212529;
-  --bg-secondary: #343a40;
-  --bg-tertiary: #495057;
-  --text-primary: #f8f9fa;
-  --text-secondary: #adb5bd;
-  --border-color: #495057;
-  --canvas-bg: #343a40;
-  --button-bg: #495057;
-  --button-hover-bg: #343a40;
-  --item-hover-bg: #343a40;
-  --duration-bg: #495057;
-  --duration-text: #f8f9fa;
+// Dark theme via system preference only (automatic with Tailwind)
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #212529;
+    --bg-secondary: #343a40;
+    --bg-tertiary: #495057;
+    --text-primary: #f8f9fa;
+    --text-secondary: #adb5bd;
+    --border-color: #495057;
+    --canvas-bg: #343a40;
+    --button-bg: #495057;
+    --button-hover-bg: #343a40;
+    --item-hover-bg: #343a40;
+    --duration-bg: #495057;
+    --duration-text: #f8f9fa;
 
-  // Override Bootstrap variables for dark theme
-  color-scheme: dark;
+    color-scheme: dark;
+  }
 }
 
-// Apply theme variables
+// Apply typography system
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+}
+
 body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--font-normal);
+  line-height: 1.5;
+  letter-spacing: -0.011em; // Apple-style tracking
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
 }
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-semibold);
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+}
+
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
 
 // components
 @import "./RecordingItem.scss";

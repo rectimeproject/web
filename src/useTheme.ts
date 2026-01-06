@@ -9,15 +9,15 @@ export interface ThemeColors {
 export type ThemeMode = "light" | "dark";
 
 const lightTheme: ThemeColors = {
-  background: 0xe9ecef, // Bootstrap gray-200
-  barColor: 0x495057, // Bootstrap gray-700
-  bookmarkColor: 0xfd7e14 // Bootstrap orange - subtle but visible
+  background: 0xf5f5f7, // Apple gray-50
+  barColor: 0x1d1d1f, // Apple gray-900
+  bookmarkColor: 0xff9500 // Apple orange
 };
 
 const darkTheme: ThemeColors = {
-  background: 0x212529, // Bootstrap gray-900
-  barColor: 0xadb5bd, // Bootstrap gray-500
-  bookmarkColor: 0xfd7e14 // Bootstrap orange - works well on dark
+  background: 0x1c1c1e, // Apple gray-900 (dark mode)
+  barColor: 0xf5f5f7, // Apple gray-50 (inverted for dark)
+  bookmarkColor: 0xff9f0a // Apple orange (dark mode variant)
 };
 
 export default function useTheme() {
@@ -28,6 +28,7 @@ export default function useTheme() {
       : "light";
   });
 
+  // Listen for system theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -38,13 +39,6 @@ export default function useTheme() {
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
-
-  // Apply theme class to document root
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", mode);
-    // Also set Bootstrap's theme attribute for navbar and other Bootstrap components
-    document.documentElement.setAttribute("data-bs-theme", mode);
-  }, [mode]);
 
   const colors = mode === "dark" ? darkTheme : lightTheme;
 

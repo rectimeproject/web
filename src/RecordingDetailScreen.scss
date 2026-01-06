@@ -1,41 +1,12 @@
-$recording-screen-play-button-size: 3rem !default;
+// ========================================
+// RECORDING DETAIL SCREEN - Apple-Inspired Design
+// ========================================
+// Most styling is now done with TailwindCSS in the component.
+// This file is kept for any custom canvas styling if needed.
 
-.recording-screen {
-  .canvas-container {
-    canvas {
-      width: 100%;
-      background-color: var(--bg-tertiary);
-      border-radius: 1rem;
-      transition: background-color 0.3s ease;
-    }
-    position: relative;
-    .duration {
-      border-radius: 1rem;
-      padding: 0.125rem 0.75rem;
-      position: absolute;
-      background-color: var(--duration-bg);
-      color: var(--duration-text);
-      bottom: 1rem;
-      right: 1rem;
-      transition:
-        background-color 0.3s ease,
-        color 0.3s ease;
-    }
-  }
-}
-
-.recording-screen-play-button {
-  border-radius: $recording-screen-play-button-size;
-  width: $recording-screen-play-button-size;
-  height: $recording-screen-play-button-size;
-  display: flex;
-  justify-content: center;
-  background-color: var(--button-bg);
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: var(--button-hover-bg);
-  }
+// Ensure PixiJS canvas fills container
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }

@@ -107,14 +107,10 @@ export default function RecordingDetailScreen() {
   // Loading state
   if (isLoadingRecording || isLoadingNotes) {
     return (
-      <div className="container recording-screen">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center my-4">
-              <ActivityIndicator width={50} />
-              <div className="mt-2">Loading recording...</div>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center">
+          <ActivityIndicator width={50} />
+          <div className="mt-4 text-gray-600 dark:text-gray-400">Loading recording...</div>
         </div>
       </div>
     );
@@ -123,22 +119,18 @@ export default function RecordingDetailScreen() {
   // Error state
   if (isRecordingError) {
     return (
-      <div className="container recording-screen">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center my-4">
-              <div className="alert alert-danger">
-                Failed to load recording:{" "}
-                {recordingError?.message ?? "Unknown error"}
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={() => refetchRecording()}
-              >
-                Retry
-              </button>
-            </div>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center">
+          <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
+            Failed to load recording:{" "}
+            {recordingError?.message ?? "Unknown error"}
           </div>
+          <button
+            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-150 hover:scale-105 active:scale-95"
+            onClick={() => refetchRecording()}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -147,12 +139,10 @@ export default function RecordingDetailScreen() {
   // Not found state
   if (!recording) {
     return (
-      <div className="container recording-screen">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center my-4">
-              <div className="alert alert-warning">Recording not found</div>
-            </div>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center">
+          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-yellow-800 dark:text-yellow-200">
+            Recording not found
           </div>
         </div>
       </div>
@@ -160,97 +150,131 @@ export default function RecordingDetailScreen() {
   }
 
   return (
-    <>
-      <div className="container recording-screen">
-        <div className="row">
-          <div className="col-md-8 col-xs-12">
-            <>
-              <div className="d-flex">
-                <div className="d-flex align-items-center">
-                  <div
-                    className="recording-screen-play-button"
-                    onClick={player.playing !== null ? player.pause : play}
-                  >
-                    <Icon
-                      name={player.playing !== null ? "pause" : "play_arrow"}
-                    />
-                  </div>
-                </div>
-                <div
-                  className="flex-fill mx-3 canvas-container"
-                  ref={onCanvasContainerElementMount}
-                >
-                  {canvasContainerDimensions !== null ? (
-                    <TimelineVisualizer
-                      canvasHeight={256}
-                      canvasWidth={canvasContainerDimensions.width}
-                      samplesPerSecond={20}
-                      timeWindowSeconds={undefined}
-                      waveformSamples={[]}
-                      bookmarks={recordingBookmarks}
-                      currentDuration={
-                        player.playing?.cursor
-                          ? player.playing.cursor * 1000
-                          : 0
-                      }
-                      totalDuration={recording?.duration}
-                      onBookmarkClick={handleBookmarkSeek}
-                      backgroundColor={theme.colors.background}
-                      barColor={theme.colors.barColor}
-                      bookmarkColor={theme.colors.bookmarkColor}
-                    />
-                  ) : null}
-                  {player.playing !== null &&
-                    player.playing.cursor !== null && (
-                      <div className="duration">
-                        {secondsToHumanReadable(player.playing.cursor)}
-                      </div>
-                    )}
-                </div>
+    <div className="max-w-7xl mx-auto px-6 py-12">
+      {/* Hero Section with Visualizer */}
+      <div className="mb-8">
+        {/* Visualizer Container with Play Button */}
+        <div className="relative bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg overflow-hidden mb-6">
+          <div className="flex items-center p-6 gap-6">
+            {/* Play/Pause Button */}
+            <button
+              onClick={player.playing !== null ? player.pause : play}
+              className="flex-shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
+              aria-label={player.playing !== null ? "Pause" : "Play"}
+            >
+              <Icon name={player.playing !== null ? "pause" : "play_arrow"} />
+            </button>
 
-                {/* Bookmark Panel */}
-                <div className="mt-3">
-                  <BookmarkPanel
-                    bookmarks={recordingBookmarks}
-                    onSeek={handleBookmarkSeek}
-                    onUpdate={handleBookmarkUpdate}
-                    onDelete={handleBookmarkDelete}
-                    updatingIds={new Set(
-                      updateMutation.isPending && updateMutation.variables
-                        ? [updateMutation.variables.id]
-                        : []
-                    )}
-                    deletingIds={new Set(
-                      deleteMutation.isPending && deleteMutation.variables
-                        ? [deleteMutation.variables.noteId]
-                        : []
-                    )}
-                  />
-                </div>
-              </div>
-            </>
-          </div>
-          <div className="col-md-4 col-xs-12">
-            <hr />
-            <div>
-              <h4>Information</h4>
-              <div>Size: {humanReadableRecordingSize}</div>
-              <div>Sample rate: {recording.sampleRate}</div>
-              <div>Channels: {recording.channels}</div>
-              <div>Frame size: {recording.frameSize}</div>
-              <div>
-                Created at:{" "}
-                {DateTime.fromJSDate(recording.createdAt).toLocaleString(
-                  DateTime.DATETIME_SHORT
+            {/* Visualizer */}
+            <div
+              className="flex-1 relative"
+              ref={onCanvasContainerElementMount}
+              style={{height: "320px"}}
+            >
+              {canvasContainerDimensions !== null ? (
+                <TimelineVisualizer
+                  canvasHeight={320}
+                  canvasWidth={canvasContainerDimensions.width}
+                  samplesPerSecond={20}
+                  timeWindowSeconds={undefined}
+                  waveformSamples={[]}
+                  bookmarks={recordingBookmarks}
+                  currentDuration={
+                    player.playing?.cursor
+                      ? player.playing.cursor * 1000
+                      : 0
+                  }
+                  totalDuration={recording?.duration}
+                  onBookmarkClick={handleBookmarkSeek}
+                  backgroundColor={theme.colors.background}
+                  barColor={theme.colors.barColor}
+                  bookmarkColor={theme.colors.bookmarkColor}
+                />
+              ) : null}
+              {player.playing !== null &&
+                player.playing.cursor !== null && (
+                  <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
+                    {secondsToHumanReadable(player.playing.cursor)}
+                  </div>
                 )}
-              </div>
-              <div>
-                Duration: {secondsToHumanReadable(recording.duration / 1000)}
-              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Metadata Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Duration
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {secondsToHumanReadable(recording.duration / 1000)}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Size
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {humanReadableRecordingSize}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Sample Rate
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {recording.sampleRate}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Channels
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {recording.channels}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Frame Size
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {recording.frameSize}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Created
+            </div>
+            <div className="text-lg font-semibold font-mono">
+              {DateTime.fromJSDate(recording.createdAt).toLocaleString(
+                DateTime.DATE_SHORT
+              )}
             </div>
           </div>
         </div>
       </div>
-    </>
+
+      {/* Bookmarks Section */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+        <BookmarkPanel
+          bookmarks={recordingBookmarks}
+          onSeek={handleBookmarkSeek}
+          onUpdate={handleBookmarkUpdate}
+          onDelete={handleBookmarkDelete}
+          updatingIds={new Set(
+            updateMutation.isPending && updateMutation.variables
+              ? [updateMutation.variables.id]
+              : []
+          )}
+          deletingIds={new Set(
+            deleteMutation.isPending && deleteMutation.variables
+              ? [deleteMutation.variables.noteId]
+              : []
+          )}
+        />
+      </div>
+    </div>
   );
 }
