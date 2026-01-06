@@ -63,7 +63,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^4.0.16",
-    "bootstrap": "^5.3.3",
+    "bootstrap": "^5.3.8",
     "fake-indexeddb": "^5.0.2",
     "jsdom": "^23.2.0",
     "prettier": "^3.7.4",
