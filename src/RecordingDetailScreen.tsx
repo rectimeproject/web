@@ -161,7 +161,7 @@ export default function RecordingDetailScreen() {
             {/* Play/Pause Button */}
             <button
               onClick={player.playing !== null ? player.pause : play}
-              className="flex-shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
+              className="shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
               aria-label={player.playing !== null ? "Pause" : "Play"}
             >
               <Icon name={player.playing !== null ? "pause" : "play_arrow"} />
