@@ -7,7 +7,7 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
     background-color: var(--canvas-bg);
     height: $recording-list-screen-canvas-container-height;
     border-radius: $recording-list-screen-canvas-border-radius;
-    margin-bottom: $spacer;
+    margin-bottom: 1rem;
     transition: background-color 0.3s ease;
     canvas {
       width: 100%;
@@ -32,7 +32,7 @@ $recording-list-screen-canvas-border-radius: 1rem !default;
     }
 
     span {
-      font-size: $recording-list-screen-bottom-bar-button-size * 0.5;
+      font-size: 1.5rem;
     }
   }
   &-bottom-bar {
@@ -62,7 +62,7 @@ $record-button-contents-size: $record-button-size * 0.7 !default;
   cursor: pointer;
   transition: background-color 0.3s ease;
   &-contents {
-    background-color: $red;
+    background-color: #dc3545;
     width: $record-button-contents-size;
     height: $record-button-contents-size;
     border-radius: $record-button-contents-size;

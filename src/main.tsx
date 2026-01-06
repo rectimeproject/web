@@ -1,5 +1,6 @@
 import webrtcAdapter from "webrtc-adapter";
 import "./index.scss";
+import "./styles/global.css";
 import "@material-design-icons/font/index.css";
 import ReactDOM from "react-dom/client";
 import App from "./App";

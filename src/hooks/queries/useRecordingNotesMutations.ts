@@ -75,6 +75,59 @@ export const useCreateRecordingNoteMutation = () => {
   });
 };
 
+export const useUpdateRecordingNoteMutation = () => {
+  const recordingNotes = useRecordingNotes();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (note: IRecordingNote) => {
+      await recordingNotes.updateRecordingNote(note);
+      return note;
+    },
+    onMutate: async (note: IRecordingNote) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.recordingNotes.byRecording(note.recordingId)
+      });
+
+      // Snapshot previous value
+      const previous = queryClient.getQueryData<IRecordingNote[]>(
+        queryKeys.recordingNotes.byRecording(note.recordingId)
+      );
+
+      // Optimistically update
+      queryClient.setQueryData(
+        queryKeys.recordingNotes.byRecording(note.recordingId),
+        (old: IRecordingNote[] = []) =>
+          old.map(n => (n.id === note.id ? note : n))
+      );
+
+      return {previous, recordingId: note.recordingId};
+    },
+    onError: (
+      _err: unknown,
+      note: IRecordingNote,
+      context: {previous: IRecordingNote[] | undefined; recordingId: string} | undefined
+    ) => {
+      // Rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.recordingNotes.byRecording(note.recordingId),
+          context.previous
+        );
+      }
+    },
+    onSettled: (note: IRecordingNote | void | null | undefined) => {
+      // Refetch to ensure consistency
+      if (note) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.recordingNotes.byRecording(note.recordingId)
+        });
+      }
+    }
+  });
+};
+
 export const useDeleteRecordingNoteMutation = () => {
   const recordingNotes = useRecordingNotes();
   const queryClient = useQueryClient();

@@ -4,12 +4,17 @@ import useRecordingPlayer from "./useRecordingPlayer";
 import ActivityIndicator from "./ActivityIndicator";
 import {DateTime} from "luxon";
 import secondsToHumanReadable from "./secondsToHumanReadable";
-import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
+import TimelineVisualizer from "./components/visualizer/TimelineVisualizer";
 import Icon from "./Icon";
 import {filesize} from "filesize";
 import useTheme from "./useTheme";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
 import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
+import BookmarkPanel from "./components/bookmarks/BookmarkPanel";
+import {
+  useUpdateRecordingNoteMutation,
+  useDeleteRecordingNoteMutation
+} from "./hooks/queries/useRecordingNotesMutations";
 
 export default function RecordingDetailScreen() {
   const theme = useTheme();
@@ -31,24 +36,42 @@ export default function RecordingDetailScreen() {
   const {data: recordingNotes, isLoading: isLoadingNotes} =
     useRecordingNotesQuery(recordingIdOrNull);
 
+  const updateMutation = useUpdateRecordingNoteMutation();
+  const deleteMutation = useDeleteRecordingNoteMutation();
+
   const recordingBookmarks = useMemo(() => {
     if (!recordingNotes) return [];
     return recordingNotes.map((n: any) => ({
       id: n.id,
       durationOffset: n.durationOffset,
-      title: n.title
+      title: n.title,
+      contents: n.contents
     }));
   }, [recordingNotes]);
 
-  const handleBookmarkClick = useCallback(
-    (_bookmark: {id: string; durationOffset: number}) => {
-      // TODO: Implement seeking functionality in useRecordingPlayer
-      // For now, just start playing from the beginning
+  const handleBookmarkSeek = useCallback(
+    (bookmark: {id: string; durationOffset: number}) => {
       if (recording !== null && recording !== undefined) {
-        player.play(recording);
+        player.seek(recording, bookmark.durationOffset);
       }
     },
     [player, recording]
+  );
+
+  const handleBookmarkUpdate = useCallback(
+    (id: string, title: string) => {
+      const note = recordingNotes?.find(n => n.id === id);
+      if (!note) return;
+      updateMutation.mutate({...note, title});
+    },
+    [recordingNotes, updateMutation]
+  );
+
+  const handleBookmarkDelete = useCallback(
+    (id: string) => {
+      deleteMutation.mutate({noteId: id});
+    },
+    [deleteMutation]
   );
 
   const play = useCallback(() => {
@@ -158,15 +181,12 @@ export default function RecordingDetailScreen() {
                   ref={onCanvasContainerElementMount}
                 >
                   {canvasContainerDimensions !== null ? (
-                    <PixiAnalyserNodeView
-                      visualizationMode={{
-                        type: "frequency",
-                        barCount: 64
-                      }}
+                    <TimelineVisualizer
                       canvasHeight={256}
                       canvasWidth={canvasContainerDimensions.width}
-                      isPlaying={player.playing !== null}
-                      analyserNode={player.analyserNode()}
+                      samplesPerSecond={20}
+                      timeWindowSeconds={undefined}
+                      waveformSamples={[]}
                       bookmarks={recordingBookmarks}
                       currentDuration={
                         player.playing?.cursor
@@ -174,16 +194,10 @@ export default function RecordingDetailScreen() {
                           : 0
                       }
                       totalDuration={recording?.duration}
-                      onBookmarkClick={handleBookmarkClick}
+                      onBookmarkClick={handleBookmarkSeek}
                       backgroundColor={theme.colors.background}
                       barColor={theme.colors.barColor}
                       bookmarkColor={theme.colors.bookmarkColor}
-                      waveformSamples={[]}
-                      playbackPosition={
-                        player.playing?.cursor
-                          ? player.playing.cursor * 1000
-                          : 0
-                      }
                     />
                   ) : null}
                   {player.playing !== null &&
@@ -192,6 +206,26 @@ export default function RecordingDetailScreen() {
                         {secondsToHumanReadable(player.playing.cursor)}
                       </div>
                     )}
+                </div>
+
+                {/* Bookmark Panel */}
+                <div className="mt-3">
+                  <BookmarkPanel
+                    bookmarks={recordingBookmarks}
+                    onSeek={handleBookmarkSeek}
+                    onUpdate={handleBookmarkUpdate}
+                    onDelete={handleBookmarkDelete}
+                    updatingIds={new Set(
+                      updateMutation.isPending && updateMutation.variables
+                        ? [updateMutation.variables.id]
+                        : []
+                    )}
+                    deletingIds={new Set(
+                      deleteMutation.isPending && deleteMutation.variables
+                        ? [deleteMutation.variables.noteId]
+                        : []
+                    )}
+                  />
                 </div>
               </div>
             </>

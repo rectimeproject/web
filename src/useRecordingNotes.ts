@@ -127,20 +127,37 @@ export default function useRecordingNotes() {
     [database]
   );
 
+  const updateRecordingNote = useCallback(
+    async (note: IRecordingNote): Promise<void> => {
+      try {
+        await database
+          .transaction("recordingNotes", "readwrite")
+          .objectStore("recordingNotes")
+          .put(note);
+      } catch (error) {
+        console.error("Failed to update note:", error);
+        throw error;
+      }
+    },
+    [database]
+  );
+
   return useMemo(
     () => ({
       createRecordingNote,
       recordingNotes,
       getRecordingNotesByRecordingId,
       getRecordingNoteById,
-      deleteRecordingNote
+      deleteRecordingNote,
+      updateRecordingNote
     }),
     [
       recordingNotes,
       createRecordingNote,
       getRecordingNotesByRecordingId,
       getRecordingNoteById,
-      deleteRecordingNote
+      deleteRecordingNote,
+      updateRecordingNote
     ]
   );
 }

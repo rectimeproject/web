@@ -11,12 +11,12 @@ $recording-screen-play-button-size: 3rem !default;
     position: relative;
     .duration {
       border-radius: 1rem;
-      padding: $spacer * 0.125 $spacer * 0.75;
+      padding: 0.125rem 0.75rem;
       position: absolute;
       background-color: var(--duration-bg);
       color: var(--duration-text);
-      bottom: $spacer;
-      right: $spacer;
+      bottom: 1rem;
+      right: 1rem;
       transition:
         background-color 0.3s ease,
         color 0.3s ease;

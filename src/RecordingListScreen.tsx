@@ -7,6 +7,7 @@ import ActivityIndicator from "./ActivityIndicator";
 import {Link} from "react-router-dom";
 import {useRecordingsInfiniteQuery} from "./hooks/queries/useRecordingsInfiniteQuery";
 import {useUpdateRecordingMutation} from "./hooks/queries/useRecordingMutations";
+import Button from "./components/ui/Button";
 
 export default function RecordingListScreen() {
   const navigate = useNavigate();
@@ -109,14 +110,10 @@ export default function RecordingListScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="container recording-list-screen">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center my-4">
-              <ActivityIndicator />
-              <div className="mt-2">Loading recordings...</div>
-            </div>
-          </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="text-center my-8">
+          <ActivityIndicator />
+          <div className="mt-2 text-gray-600 dark:text-gray-400">Loading recordings...</div>
         </div>
       </div>
     );
@@ -125,97 +122,78 @@ export default function RecordingListScreen() {
   // Error state
   if (isError) {
     return (
-      <div className="container recording-list-screen">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center my-4">
-              <div className="alert alert-danger">
-                Failed to load recordings: {error?.message ?? "Unknown error"}
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={() => refetch()}
-              >
-                Retry
-              </button>
-            </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="text-center my-8">
+          <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
+            Failed to load recordings: {error?.message ?? "Unknown error"}
           </div>
+          <Button onClick={() => refetch()}>
+            Retry
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container recording-list-screen">
-      <div className="row">
-        <div className="col-lg-12">
-          {!recordingsWithHandlers.length ? (
-            <>
-              <div className="text-center">
-                No recordings yet. <Link to="/">Record</Link> something!
-              </div>
-            </>
-          ) : (
-            <>
-              {recordingsWithHandlers.map(r => (
-                <div
-                  className="d-flex recording"
-                  key={r.id}
-                >
-                  <div className="flex-fill overflow-hidden">
-                    <div>
-                      {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
-                        DateTime.DATETIME_SHORT
-                      )} | ${secondsToHumanReadable(r.duration / 1000)}`}
-                    </div>
-                    <div>
-                      <h4>
-                        <input
-                          value={newRecordingNames.get(r.id) ?? r.name}
-                          onChange={r.onChangeNewRecordingName}
-                          style={{
-                            border: "none"
-                          }}
-                          disabled={updateRecordingMutation.isPending}
-                        />
-                      </h4>
-                    </div>
-                  </div>
-                  <div>
-                    {updateRecordingMutation.isPending ? (
-                      <ActivityIndicator />
-                    ) : (
-                      <div
-                        className="play-arrow"
-                        onClick={r.onClickPlay}
-                      >
-                        <Icon name="headphones" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isFetchingNextPage ? (
-                <div className="text-center my-4">
-                  <ActivityIndicator />
-                  <div className="mt-2">Loading more...</div>
-                </div>
-              ) : hasNextPage ? (
-                <div className="text-center my-4">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => fetchNextPage()}
-                  >
-                    Load More
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center my-4">No more results.</div>
-              )}
-            </>
-          )}
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {!recordingsWithHandlers.length ? (
+        <div className="text-center text-gray-600 dark:text-gray-400">
+          No recordings yet. <Link to="/" className="text-blue-600 dark:text-blue-400 hover:underline">Record</Link> something!
         </div>
-      </div>
+      ) : (
+        <>
+          {recordingsWithHandlers.map(r => (
+            <div
+              key={r.id}
+              className="flex items-center gap-4 p-4 mb-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  {`${DateTime.fromJSDate(r.createdAt).toLocaleString(
+                    DateTime.DATETIME_SHORT
+                  )} | ${secondsToHumanReadable(r.duration / 1000)}`}
+                </div>
+                <div>
+                  <input
+                    value={newRecordingNames.get(r.id) ?? r.name}
+                    onChange={r.onChangeNewRecordingName}
+                    className="text-lg font-medium bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 -mx-2 w-full"
+                    disabled={updateRecordingMutation.isPending}
+                  />
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                {updateRecordingMutation.isPending ? (
+                  <ActivityIndicator />
+                ) : (
+                  <button
+                    onClick={r.onClickPlay}
+                    className="p-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    aria-label="Play recording"
+                  >
+                    <Icon name="headphones" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {isFetchingNextPage ? (
+            <div className="text-center my-8">
+              <ActivityIndicator />
+              <div className="mt-2 text-gray-600 dark:text-gray-400">Loading more...</div>
+            </div>
+          ) : hasNextPage ? (
+            <div className="text-center my-8">
+              <Button variant="secondary" onClick={() => fetchNextPage()}>
+                Load More
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center my-8 text-gray-600 dark:text-gray-400">No more results.</div>
+          )}
+        </>
+      )}
     </div>
   );
 }

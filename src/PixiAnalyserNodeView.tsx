@@ -1,6 +1,10 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect} from "react";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import * as PIXI from "pixi.js";
+import {usePixiApp} from "./hooks/visualizer/usePixiApp";
+import {useResizeObserver} from "./hooks/visualizer/useResizeObserver";
+import {useVisualizerBars} from "./hooks/visualizer/useVisualizerBars";
+import {useTimelineWaveform} from "./hooks/visualizer/useTimelineWaveform";
 
 interface IBookmark {
   id: string;
@@ -43,292 +47,89 @@ export default function PixiAnalyserNodeView({
   backgroundColor = 0xe9ecef,
   barColor = 0x495057,
   bookmarkColor = 0xff6b6b,
-  waveformSamples = [],
-  playbackPosition = 0
+  waveformSamples = []
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<PIXI.Application | null>(null);
-  const barsRef = useRef<PIXI.Graphics[]>([]);
-  const barsContainerRef = useRef<PIXI.Container | null>(null);
-  const markersContainerRef = useRef<PIXI.Container | null>(null);
-  const [dimensions, setDimensions] = useState({width: 800, height: 256});
-  const [isPixiReady, setIsPixiReady] = useState(false);
+  // Use extracted hooks
+  const {
+    containerRef,
+    appRef,
+    barsContainerRef,
+    markersContainerRef,
+    isPixiReady
+  } = usePixiApp({
+    width: 800,
+    height: typeof canvasHeight === "number" ? canvasHeight : 256,
+    backgroundColor
+  });
 
-  // Initialize PixiJS app (PixiJS 8 async initialization)
+  const dimensions = useResizeObserver({
+    containerRef,
+    appRef,
+    canvasHeight
+  });
+
+  const barsRef = useVisualizerBars({
+    visualizationMode,
+    isPixiReady,
+    barsContainerRef
+  });
+
+  // Use timeline waveform hook if in timeline mode
+  useTimelineWaveform({
+    waveformSamples:
+      visualizationMode.type === "timeline" ? waveformSamples : [],
+    barsRef,
+    dimensions,
+    barColor,
+    samplesPerSecond:
+      visualizationMode.type === "timeline"
+        ? visualizationMode.samplesPerSecond
+        : undefined,
+    timeWindowSeconds:
+      visualizationMode.type === "timeline"
+        ? visualizationMode.timeWindowSeconds
+        : undefined
+  });
+
+  // Frequency mode rendering (timeline is handled by useTimelineWaveform hook)
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (visualizationMode.type !== "frequency") return;
 
-    let cleanedUp = false;
+    // Frequency mode: real-time frequency bars
+    if (!analyserNode || !isPlaying || !barsRef.current.length) return;
 
-    (async () => {
-      const app = new PIXI.Application();
+    analyserNode.fftSize = 2 ** 10;
+    analyserNode.minDecibels = -90;
+    analyserNode.maxDecibels = -10;
 
-      await app.init({
-        width: dimensions.width,
-        height: dimensions.height,
-        background: backgroundColor,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true
-      });
+    const data = new Uint8Array(analyserNode.frequencyBinCount);
+    const barCount = visualizationMode.barCount ?? 64;
+    const barWidth = dimensions.width / barCount;
+    let frameId: number;
 
-      if (cleanedUp) {
-        app.destroy(true, {children: true});
-        return;
-      }
+    const draw = () => {
+      analyserNode.getByteFrequencyData(data);
 
-      if (!containerRef.current) return;
-
-      containerRef.current.appendChild(app.canvas);
-      appRef.current = app;
-
-      const barsContainer = new PIXI.Container();
-      const markersContainer = new PIXI.Container();
-      app.stage.addChild(barsContainer);
-      app.stage.addChild(markersContainer);
-
-      barsContainerRef.current = barsContainer;
-      markersContainerRef.current = markersContainer;
-
-      // Bars will be created dynamically based on visualization mode
-      barsRef.current = [];
-
-      // Signal that PixiJS is ready
-      console.log(
-        "[PixiAnalyserNodeView] PixiJS initialized, ready to create bars"
-      );
-      setIsPixiReady(true);
-    })();
-
-    return () => {
-      cleanedUp = true;
-      setIsPixiReady(false);
-      if (appRef.current) {
-        appRef.current.destroy(true, {children: true});
-        appRef.current = null;
-        barsRef.current = [];
-        markersContainerRef.current = null;
-      }
-    };
-  }, [dimensions, backgroundColor]);
-
-  // Handle resize
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const observer = new ResizeObserver(entries => {
-      const {width} = entries[0]?.contentRect ?? {width: 800};
-      const height =
-        typeof canvasHeight === "number"
-          ? canvasHeight
-          : (entries[0]?.contentRect.height ?? 256);
-      setDimensions({width, height});
-      appRef.current?.renderer.resize(width, height);
-    });
-
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [canvasHeight]);
-
-  // Dynamically create/update bars based on visualization mode
-  useEffect(() => {
-    console.log("[PixiAnalyserNodeView] Bar creation effect", {
-      isPixiReady,
-      hasBarsContainer: !!barsContainerRef.current,
-      visualizationMode: visualizationMode.type
-    });
-
-    if (!isPixiReady || !barsContainerRef.current) {
-      console.log(
-        "[PixiAnalyserNodeView] Skipping bar creation - PixiJS not ready yet"
-      );
-      return;
-    }
-
-    const container = barsContainerRef.current;
-
-    // Determine how many bars we need
-    let barCount = 64; // Default for frequency mode
-    if (visualizationMode.type === "frequency") {
-      barCount = visualizationMode.barCount ?? 64;
-    } else if (visualizationMode.type === "timeline") {
-      // For timeline, calculate based on time window
-      const samplesPerSecond = visualizationMode.samplesPerSecond ?? 20;
-      const timeWindowSeconds = visualizationMode.timeWindowSeconds ?? 10;
-      barCount = samplesPerSecond * timeWindowSeconds; // e.g., 20 * 10 = 200 bars
-    }
-
-    // Only recreate bars if the count changed
-    if (barsRef.current.length !== barCount) {
-      // Clear existing bars
-      barsRef.current.forEach(bar => {
-        container.removeChild(bar);
-        bar.destroy();
-      });
-      barsRef.current = [];
-
-      // Create new bars
-      const bars: PIXI.Graphics[] = [];
-      for (let i = 0; i < barCount; i++) {
-        const bar = new PIXI.Graphics();
-        container.addChild(bar);
-        bars.push(bar);
-      }
-      barsRef.current = bars;
-      console.log(
-        `[PixiAnalyserNodeView] Created ${barCount} bars for ${visualizationMode.type} mode`
-      );
-    }
-  }, [visualizationMode, isPixiReady]);
-
-  // Render visualization based on mode
-  useEffect(() => {
-    console.log("[PixiAnalyserNodeView] Render effect triggered", {
-      mode: visualizationMode.type,
-      waveformSamplesLength: waveformSamples.length,
-      barsLength: barsRef.current.length,
-      dimensionsWidth: dimensions.width,
-      dimensionsHeight: dimensions.height
-    });
-
-    if (visualizationMode.type === "frequency") {
-      // Frequency mode: real-time frequency bars
-      if (!analyserNode || !isPlaying || !barsRef.current.length) return;
-
-      analyserNode.fftSize = 2 ** 10;
-      analyserNode.minDecibels = -90;
-      analyserNode.maxDecibels = -10;
-
-      const data = new Uint8Array(analyserNode.frequencyBinCount);
-      const barCount = visualizationMode.barCount ?? 64;
-      const barWidth = dimensions.width / barCount;
-      let frameId: number;
-
-      const draw = () => {
-        analyserNode.getByteFrequencyData(data);
-
-        barsRef.current.forEach((bar, i) => {
-          const height = Math.max(data[i] ?? 0, 10);
-          const x = i * barWidth;
-          const y = dimensions.height / 2 - height / 2;
-
-          bar.clear();
-          bar.rect(x, y, barWidth - 1, height);
-          bar.fill(barColor);
-        });
-
-        frameId = requestAnimationFrame(draw);
-      };
-
-      frameId = requestAnimationFrame(draw);
-
-      return () => {
-        cancelAnimationFrame(frameId);
-        barsRef.current.forEach(bar => bar.clear());
-      };
-    } else if (visualizationMode.type === "timeline") {
-      // Timeline mode: render waveform over time
-      console.log("[PixiAnalyserNodeView] Timeline mode rendering", {
-        barsLength: barsRef.current.length,
-        samplesLength: waveformSamples.length
-      });
-
-      if (!barsRef.current.length) {
-        console.log("[PixiAnalyserNodeView] No bars created yet");
-        return;
-      }
-
-      if (waveformSamples.length === 0) {
-        console.log(
-          "[PixiAnalyserNodeView] No waveform samples, clearing bars"
-        );
-        // Clear all bars and return
-        barsRef.current.forEach(bar => bar.clear());
-        return;
-      }
-
-      const samplesPerSecond = visualizationMode.samplesPerSecond ?? 20;
-      const timeWindowSeconds = visualizationMode.timeWindowSeconds;
-
-      // If timeWindowSeconds is undefined, show all samples
-      // Otherwise show only the last N seconds
-      const maxSamplesInWindow = timeWindowSeconds
-        ? samplesPerSecond * timeWindowSeconds
-        : waveformSamples.length;
-
-      // Get the samples to display
-      const startIndex = Math.max(
-        0,
-        waveformSamples.length - maxSamplesInWindow
-      );
-      const visibleSamples = waveformSamples.slice(startIndex);
-
-      // Calculate bar width - fit all visible samples into canvas width
-      const barSpacing = 1;
-      const barWidth = Math.max(
-        2,
-        dimensions.width / visibleSamples.length - barSpacing
-      );
-
-      // Clear all bars first
-      barsRef.current.forEach(bar => bar.clear());
-
-      // Render visible waveform bars (only as many as we have bars for)
-      const samplesToRender = Math.min(
-        visibleSamples.length,
-        barsRef.current.length
-      );
-
-      console.log("[PixiAnalyserNodeView] Rendering waveform", {
-        visibleSamplesLength: visibleSamples.length,
-        barsLength: barsRef.current.length,
-        samplesToRender,
-        barWidth,
-        canvasWidth: dimensions.width
-      });
-
-      for (let i = 0; i < samplesToRender; i++) {
-        const amplitude = visibleSamples[i] ?? null;
-        const bar = barsRef.current[i] ?? null;
-
-        if (bar === null || amplitude === null) {
-          console.warn("Bar or amplitude data missing");
-          continue;
-        }
-
-        const x = i * (barWidth + barSpacing);
-
-        // Normalize amplitude to be more visible (0-255 range from analyser)
-        // Apply logarithmic scaling for better visual representation
-        const normalizedAmp = Math.min(amplitude / 255, 1);
-        const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
-        const height = Math.max(boostedAmp * dimensions.height * 0.9, 4);
+      barsRef.current.forEach((bar, i) => {
+        const height = Math.max(data[i] ?? 0, 10);
+        const x = i * barWidth;
         const y = dimensions.height / 2 - height / 2;
 
         bar.clear();
+        bar.rect(x, y, barWidth - 1, height);
+        bar.fill(barColor);
+      });
 
-        // Draw rounded rectangle for smoother appearance
-        const radius = Math.min(barWidth / 2, 2);
-        bar.roundRect(x, y, barWidth, height, radius);
+      frameId = requestAnimationFrame(draw);
+    };
 
-        // Full opacity for better visibility
-        bar.fill({color: barColor, alpha: 1});
-      }
-    }
+    frameId = requestAnimationFrame(draw);
 
-    return undefined;
-  }, [
-    visualizationMode,
-    analyserNode,
-    isPlaying,
-    dimensions,
-    barColor,
-    waveformSamples,
-    playbackPosition,
-    totalDuration,
-    currentDuration,
-    bookmarkColor
-  ]);
+    return () => {
+      cancelAnimationFrame(frameId);
+      barsRef.current.forEach(bar => bar.clear());
+    };
+  }, [visualizationMode, analyserNode, isPlaying, dimensions, barColor, barsRef]);
 
   // Render bookmark markers (Samsung Recorder style - minimalist, mobile-optimized)
   useEffect(() => {

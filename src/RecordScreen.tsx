@@ -17,7 +17,7 @@ import {CodecId} from "opus-codec-worker/actions/actions";
 import {RecorderStateType} from "./Recorder";
 import {filesize} from "filesize";
 import Icon from "./Icon";
-import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
+import TimelineVisualizer from "./components/visualizer/TimelineVisualizer";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage";
@@ -56,15 +56,6 @@ export default function RecordingListScreen() {
   const goToRecordingListScreen = useCallback(() => {
     navigate("/recordings");
   }, [navigate]);
-  const visualizationMode = useMemo(
-    () =>
-      ({
-        type: "timeline",
-        samplesPerSecond: 20,
-        timeWindowSeconds: 10 // Show last 10 seconds (scrolling window)
-      }) as const,
-    []
-  );
 
   // Waveform data for timeline visualization
   const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
@@ -388,33 +379,27 @@ export default function RecordingListScreen() {
                   {canvasContainerDimensions !== null ? (
                     <>
                       {console.log(
-                        "[RecordScreen] Rendering PixiAnalyserNodeView",
+                        "[RecordScreen] Rendering TimelineVisualizer",
                         {
                           canvasWidth: canvasContainerDimensions.width,
                           canvasHeight: 256,
                           isRecording: recordings.isRecording,
                           hasAnalyserNode: !!analyserNode,
-                          waveformSamplesLength: waveformSamples.length,
-                          visualizationMode
+                          waveformSamplesLength: waveformSamples.length
                         }
                       )}
-                      <PixiAnalyserNodeView
+                      <TimelineVisualizer
                         canvasWidth={canvasContainerDimensions.width}
                         canvasHeight={256}
-                        visualizationMode={visualizationMode}
-                        isPlaying
-                        analyserNode={
-                          recordings.isRecording
-                            ? analyserNode
-                            : debugAudioVisualizer.analyserNode
-                        }
+                        samplesPerSecond={20}
+                        timeWindowSeconds={10}
+                        waveformSamples={waveformSamples}
                         bookmarks={recordingBookmarks}
                         currentDuration={recording?.duration ?? 0}
+                        totalDuration={recording?.duration}
                         backgroundColor={theme.colors.background}
                         barColor={theme.colors.barColor}
                         bookmarkColor={theme.colors.bookmarkColor}
-                        waveformSamples={waveformSamples}
-                        playbackPosition={0}
                       />
                     </>
                   ) : null}

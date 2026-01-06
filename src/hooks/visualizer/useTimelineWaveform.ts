@@ -1,0 +1,114 @@
+import { useEffect } from "react";
+import * as PIXI from "pixi.js";
+
+interface Dimensions {
+  width: number;
+  height: number;
+}
+
+interface UseTimelineWaveformOptions {
+  waveformSamples: number[];
+  barsRef: React.RefObject<PIXI.Graphics[]>;
+  dimensions: Dimensions;
+  barColor: number;
+  samplesPerSecond: number | undefined;
+  timeWindowSeconds: number | undefined;
+}
+
+/**
+ * Hook to render timeline waveform visualization
+ * Displays amplitude samples over time with scrolling window
+ */
+export function useTimelineWaveform({
+  waveformSamples,
+  barsRef,
+  dimensions,
+  barColor,
+  samplesPerSecond = 20,
+  timeWindowSeconds
+}: UseTimelineWaveformOptions): void {
+  useEffect(() => {
+    console.log("[useTimelineWaveform] Rendering", {
+      barsLength: barsRef.current.length,
+      samplesLength: waveformSamples.length
+    });
+
+    if (!barsRef.current.length) {
+      console.log("[useTimelineWaveform] No bars created yet");
+      return;
+    }
+
+    if (waveformSamples.length === 0) {
+      console.log("[useTimelineWaveform] No waveform samples, clearing bars");
+      // Clear all bars and return
+      barsRef.current.forEach(bar => bar.clear());
+      return;
+    }
+
+    // If timeWindowSeconds is undefined, show all samples
+    // Otherwise show only the last N seconds
+    const maxSamplesInWindow = timeWindowSeconds
+      ? samplesPerSecond * timeWindowSeconds
+      : waveformSamples.length;
+
+    // Get the samples to display
+    const startIndex = Math.max(0, waveformSamples.length - maxSamplesInWindow);
+    const visibleSamples = waveformSamples.slice(startIndex);
+
+    // Calculate bar width - fit all visible samples into canvas width
+    const barSpacing = 1;
+    const barWidth = Math.max(
+      2,
+      dimensions.width / visibleSamples.length - barSpacing
+    );
+
+    // Clear all bars first
+    barsRef.current.forEach(bar => bar.clear());
+
+    // Render visible waveform bars (only as many as we have bars for)
+    const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
+
+    console.log("[useTimelineWaveform] Rendering waveform", {
+      visibleSamplesLength: visibleSamples.length,
+      barsLength: barsRef.current.length,
+      samplesToRender,
+      barWidth,
+      canvasWidth: dimensions.width
+    });
+
+    for (let i = 0; i < samplesToRender; i++) {
+      const amplitude = visibleSamples[i] ?? null;
+      const bar = barsRef.current[i] ?? null;
+
+      if (bar === null || amplitude === null) {
+        console.warn("Bar or amplitude data missing");
+        continue;
+      }
+
+      const x = i * (barWidth + barSpacing);
+
+      // Normalize amplitude to be more visible (0-255 range from analyser)
+      // Apply logarithmic scaling for better visual representation
+      const normalizedAmp = Math.min(amplitude / 255, 1);
+      const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
+      const height = Math.max(boostedAmp * dimensions.height * 0.9, 4);
+      const y = dimensions.height / 2 - height / 2;
+
+      bar.clear();
+
+      // Draw rounded rectangle for smoother appearance
+      const radius = Math.min(barWidth / 2, 2);
+      bar.roundRect(x, y, barWidth, height, radius);
+
+      // Full opacity for better visibility
+      bar.fill({ color: barColor, alpha: 1 });
+    }
+  }, [
+    waveformSamples,
+    barsRef,
+    dimensions,
+    barColor,
+    samplesPerSecond,
+    timeWindowSeconds
+  ]);
+}

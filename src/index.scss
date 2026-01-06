@@ -1,6 +1,3 @@
-@import "bootstrap/scss/bootstrap-reboot.scss";
-@import "bootstrap/scss/bootstrap.scss";
-
 // Theme variables
 :root {
   // Light theme (default)
@@ -46,21 +43,8 @@ body {
     color 0.3s ease;
 }
 
-.container,
-.card,
-.modal-content {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.recording-list-screen .canvas-container {
-  background-color: var(--canvas-bg);
-  transition: background-color 0.3s ease;
-}
-
 // components
 @import "./RecordingItem.scss";
 @import "./RecordScreen.scss";
 @import "./RecordingDetailScreen.scss";
-@import "./RecordingListScreen.scss";
 @import "./Icon.scss";

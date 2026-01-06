@@ -365,13 +365,43 @@ export default function useRecordingPlayer() {
     interval.setCallback(updatePlayingState);
     interval.start();
   }, [interval, updatePlayingState]);
+
+  /**
+   * Seek to a specific time in the recording
+   * TODO: Implement efficient seeking by finding the correct offset chunk
+   * Currently restarts playback from the beginning as a placeholder
+   */
+  const seek = useCallback(
+    (recording: RecordingV1, targetTimeMs: number) => {
+      // Pause current playback if any
+      pause();
+
+      // TODO: Implement proper seeking logic:
+      // 1. Find the offset chunk containing targetTimeMs
+      //    - This requires storing duration metadata per offset, OR
+      //    - Decoding chunks sequentially until reaching target time
+      // 2. Start playback from that offset
+      // 3. Skip audio output until reaching exact target time
+      //
+      // For now, restart playback from beginning
+      // This provides the interface for bookmark seeking
+      play(recording);
+
+      console.warn(
+        `[useRecordingPlayer] seek() called for time ${targetTimeMs}ms - currently restarts from beginning (TODO: implement offset-based seeking)`
+      );
+    },
+    [pause, play]
+  );
+
   return useMemo(
     () => ({
       play,
       analyserNode: () => stateRef.current?.analyserNode ?? null,
       playing,
-      pause
+      pause,
+      seek
     }),
-    [play, pause, playing]
+    [play, pause, playing, seek]
   );
 }
