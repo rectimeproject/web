@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {useCallback, useEffect, useMemo, useRef} from "react";
 
 export default function useThrottle(ms: number) {
   const timeoutRef = useRef<number | null>(null);
@@ -18,7 +18,7 @@ export default function useThrottle(ms: number) {
           fn();
         } catch (reason) {
           console.error(
-            'function passed to run function failed with error: %o',
+            "function passed to run function failed with error: %o",
             reason
           );
         }
@@ -36,7 +36,7 @@ export default function useThrottle(ms: number) {
   return useMemo(
     () => ({
       clear,
-      run,
+      run
     }),
     [run, clear]
   );

@@ -3,10 +3,11 @@ import {
   createContext,
   useCallback,
   useEffect,
-  useState,
-} from 'react';
-import './App.css';
-import NavigationBar from './NavigationBar';
+  useState
+} from "react";
+import "./App.css";
+import NavigationBar from "./NavigationBar";
+import useTheme from "./useTheme";
 
 export interface IDeviceDimensions {
   width: number;
@@ -17,30 +18,33 @@ export const DeviceDimensionsContext = createContext<IDeviceDimensions | null>(
   null
 );
 
-function App({ children }: PropsWithChildren<{}>) {
+function App({children}: PropsWithChildren<{}>) {
+  // Initialize theme (sets data-theme attribute on document root)
+  useTheme();
+
   const [dimensions, setDimensions] = useState<IDeviceDimensions>({
     width: window.innerWidth,
-    height: window.innerHeight,
+    height: window.innerHeight
   });
   const onResize = useCallback(() => {
     setDimensions({
       width: window.innerWidth,
-      height: window.innerHeight,
+      height: window.innerHeight
     });
   }, []);
   useEffect(() => {
-    window.addEventListener('resize', onResize, {
-      passive: true,
+    window.addEventListener("resize", onResize, {
+      passive: true
     });
     return () => {
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener("resize", onResize);
     };
   }, [onResize]);
   return (
     <DeviceDimensionsContext.Provider value={dimensions}>
-      <div>
+      <div className="min-h-screen flex flex-col bg-white dark:bg-black transition-colors duration-300">
         <NavigationBar />
-        <div className="mt-3">{children}</div>
+        <main className="flex-1">{children}</main>
       </div>
     </DeviceDimensionsContext.Provider>
   );

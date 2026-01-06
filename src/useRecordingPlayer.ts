@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RecordingV1 } from "./RecorderDatabase";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {RecordingV1} from "./RecorderDatabase";
 import {
   createDecoder,
   decodeFloat,
-  destroyDecoder,
+  destroyDecoder
 } from "opus-codec-worker/actions/actions";
 import useRecorderContext from "./useRecorderContext";
 import blobToArrayBuffer from "./blobToArrayBuffer";
@@ -11,11 +11,11 @@ import {
   AnalyserNode,
   AudioBufferSourceNode,
   IAudioBuffer,
-  IAudioContext,
+  IAudioContext
 } from "standardized-audio-context";
 import useInterval from "./useInterval";
-import { useRecorderDatabaseContext } from "./RecorderDatabaseContext";
-import { RingBuffer } from "opus-codec/opus";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
+import {RingBuffer} from "opus-codec/opus";
 
 interface IScheduleItem {
   audioBuffer: IAudioBuffer;
@@ -62,7 +62,7 @@ export default function useRecordingPlayer() {
     if (!state || state.decoderId === null) return;
     recorderContext.opus.client
       .sendMessage(destroyDecoder(state.decoderId))
-      .then((result) => {
+      .then(result => {
         if ("failures" in result) {
           console.error("failed to destroy decoder with error: %o", result);
         }
@@ -97,13 +97,13 @@ export default function useRecordingPlayer() {
             recording.frameSize
           )
         ),
-        ctx.resume(),
+        ctx.resume()
       ]);
     },
     [recorderContext.opus.client, recorderContext.audioContext]
   );
   const updatePlayingState = useCallback(() => {
-    setPlaying((playing) => {
+    setPlaying(playing => {
       const schedule = stateRef.current?.schedule;
       const initialCurrentTime =
         stateRef.current?.playingState?.initialCurrentTime;
@@ -123,7 +123,7 @@ export default function useRecordingPlayer() {
       if (lastScheduleItem && playing) {
         return {
           ...playing,
-          cursor: lastScheduleItem.startTime,
+          cursor: lastScheduleItem.startTime
         };
       }
       return playing;
@@ -141,7 +141,7 @@ export default function useRecordingPlayer() {
 
       setPlaying({
         recordingId: recording.id,
-        cursor: null,
+        cursor: null
       });
 
       createDecoderAndResumeAudioContext(recording).then(
@@ -163,7 +163,7 @@ export default function useRecordingPlayer() {
             playingState: null,
             decoderId: decoderId.value,
             requestedStop: false,
-            analyserNode: ctx.createAnalyser(),
+            analyserNode: ctx.createAnalyser()
           };
           stateRef.current = state;
 
@@ -195,7 +195,7 @@ export default function useRecordingPlayer() {
               playingState = {
                 lastTime: ctx.currentTime,
                 scheduleOffset: 0,
-                initialCurrentTime: ctx.currentTime,
+                initialCurrentTime: ctx.currentTime
               };
               current.playingState = playingState;
             } else {
@@ -209,7 +209,7 @@ export default function useRecordingPlayer() {
             ) {
               const item = schedule[i];
               if (typeof item === "undefined") return false;
-              const { sourceNode, audioBuffer } = item;
+              const {sourceNode, audioBuffer} = item;
               sourceNode.connect(current.analyserNode);
               sourceNode.start(playingState.lastTime);
               playingState.lastTime += audioBuffer.duration;
@@ -243,7 +243,7 @@ export default function useRecordingPlayer() {
             schedule.push({
               audioBuffer: buffer,
               sourceNode: source,
-              startTime: stateRef.current.durationOffset,
+              startTime: stateRef.current.durationOffset
             });
             stateRef.current.durationOffset += buffer.duration;
             if (!maybePlaySchedule()) {
@@ -259,7 +259,7 @@ export default function useRecordingPlayer() {
             const decoded = await client.sendMessage(
               decodeFloat({
                 decoderId: decoderId.value,
-                encoded: arrayBuffer,
+                encoded: arrayBuffer
               })
             );
             if ("failures" in decoded) {
@@ -295,7 +295,7 @@ export default function useRecordingPlayer() {
           }
 
           const decodingAndScheduling = (async () => {
-            for (const { start, end } of recordingData.offsets) {
+            for (const {start, end} of recordingData.offsets) {
               if (
                 !(await decodeAndScheduleBlobPart(
                   recordingData.data.slice(start, end)
@@ -329,12 +329,12 @@ export default function useRecordingPlayer() {
           } while (drainedSamples !== null);
 
           if (stateRef.current.requestedStop) {
-            for (const { sourceNode } of schedule.splice(0, schedule.length)) {
+            for (const {sourceNode} of schedule.splice(0, schedule.length)) {
               sourceNode.disconnect(ctx.destination);
               sourceNode.stop();
             }
           } else {
-            for (const { sourceNode } of schedule.slice(schedule.length - 1)) {
+            for (const {sourceNode} of schedule.slice(schedule.length - 1)) {
               sourceNode.addEventListener(
                 "ended",
                 onFinishedPlayingLastSourceNode
@@ -354,7 +354,7 @@ export default function useRecordingPlayer() {
       setPlaying,
       createDecoderAndResumeAudioContext,
       clearDecoderIdState,
-      pause,
+      pause
     ]
   );
   /**
@@ -365,13 +365,43 @@ export default function useRecordingPlayer() {
     interval.setCallback(updatePlayingState);
     interval.start();
   }, [interval, updatePlayingState]);
+
+  /**
+   * Seek to a specific time in the recording
+   * TODO: Implement efficient seeking by finding the correct offset chunk
+   * Currently restarts playback from the beginning as a placeholder
+   */
+  const seek = useCallback(
+    (recording: RecordingV1, targetTimeMs: number) => {
+      // Pause current playback if any
+      pause();
+
+      // TODO: Implement proper seeking logic:
+      // 1. Find the offset chunk containing targetTimeMs
+      //    - This requires storing duration metadata per offset, OR
+      //    - Decoding chunks sequentially until reaching target time
+      // 2. Start playback from that offset
+      // 3. Skip audio output until reaching exact target time
+      //
+      // For now, restart playback from beginning
+      // This provides the interface for bookmark seeking
+      play(recording);
+
+      console.warn(
+        `[useRecordingPlayer] seek() called for time ${targetTimeMs}ms - currently restarts from beginning (TODO: implement offset-based seeking)`
+      );
+    },
+    [pause, play]
+  );
+
   return useMemo(
     () => ({
       play,
       analyserNode: () => stateRef.current?.analyserNode ?? null,
       playing,
       pause,
+      seek
     }),
-    [play, pause, playing]
+    [play, pause, playing, seek]
   );
 }

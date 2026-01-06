@@ -1,75 +1,46 @@
-import { Link } from 'react-router-dom';
-import Icon from './Icon';
+import {Link, useLocation} from "react-router-dom";
+import Icon from "./Icon";
 
 export default function NavigationBar() {
+  const location = useLocation();
+
   return (
-    <nav className="navbar navbar-expand-lg bg-body-tertiary">
-      <div className="container">
-        <Link to="/" className="navbar-brand">
-          <Icon name="mic" /> Rectime
-        </Link>
-        {/* <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button> */}
-        <div className="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="nav-item">
-              <Link to="/" className="nav-link">
-                Home
-              </Link>
-            </li>
-            {/* <li className="nav-item">
-              <a href="/" className="nav-link">
-                Link
-              </a>
-            </li> */}
-            {/* <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                Dropdown
-              </a>
-              <ul className="dropdown-menu">
-                <li>
-                  <a className="dropdown-item">Action</a>
-                </li>
-                <li>
-                  <a className="dropdown-item">Another action</a>
-                </li>
-                <li>
-                  <hr className="dropdown-divider" />
-                </li>
-                <li>
-                  <a className="dropdown-item">Something else here</a>
-                </li>
-              </ul>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link disabled">Disabled</a>
-            </li> */}
-          </ul>
-          {/* <form className="d-flex" role="search">
-            <input
-              className="form-control me-2"
-              type="search"
-              placeholder="Search"
-              aria-label="Search"
-            />
-            <button className="btn btn-outline-success" type="submit">
-              Search
-            </button>
-          </form> */}
+    <nav className="sticky top-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-white hover:opacity-70 transition-opacity duration-150"
+          >
+            <Icon name="mic" />
+            <span className="tracking-tight">RecTime</span>
+          </Link>
+
+          {/* Nav items */}
+          <div className="flex items-center gap-6">
+            <Link
+              to="/"
+              className={`text-sm font-medium transition-colors duration-150 ${
+                location.pathname === "/"
+                  ? "text-blue-500 dark:text-blue-400"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              Record
+            </Link>
+
+            <Link
+              to="/recordings"
+              className={`text-sm font-medium transition-colors duration-150 ${
+                location.pathname === "/recordings"
+                  ? "text-blue-500 dark:text-blue-400"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              Recordings
+            </Link>
+          </div>
         </div>
       </div>
     </nav>

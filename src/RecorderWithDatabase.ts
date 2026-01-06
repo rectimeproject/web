@@ -1,21 +1,21 @@
-import { IAudioContext } from 'standardized-audio-context';
-import Recorder, { Opus } from './Recorder';
-import RecorderDatabase from './RecorderDatabase';
-import { boundMethod } from 'autobind-decorator';
-import { CodecId } from 'opus-codec-worker/actions/actions';
+import {IAudioContext} from "standardized-audio-context";
+import Recorder, {Opus} from "./Recorder";
+import RecorderDatabase from "./RecorderDatabase";
+import {boundMethod} from "autobind-decorator";
+import {CodecId} from "opus-codec-worker/actions/actions";
 
 export default class RecorderWithDatabase extends Recorder {
-  static databaseName = 'appRecordings';
+  static databaseName = "appRecordings";
   readonly #database;
   public constructor(a: IAudioContext, b: Opus) {
     super(a, b);
     this.#database = new RecorderDatabase(RecorderWithDatabase.databaseName);
-    this.on('startRecording', this.onStartRecording);
-    this.on('encoded', this.onEncoded);
+    this.on("startRecording", this.onStartRecording);
+    this.on("encoded", this.onEncoded);
   }
   public close() {
-    this.off('startRecording', this.onStartRecording);
-    this.off('encoded', this.onEncoded);
+    this.off("startRecording", this.onStartRecording);
+    this.off("encoded", this.onEncoded);
   }
   public database() {
     return this.#database;
@@ -23,7 +23,7 @@ export default class RecorderWithDatabase extends Recorder {
   @boundMethod private async onEncoded({
     encoderId,
     sampleCount,
-    buffer,
+    buffer
   }: {
     encoderId: CodecId;
     sampleCount: number;
@@ -33,10 +33,10 @@ export default class RecorderWithDatabase extends Recorder {
       !(await this.#database.addBlobPart({
         encoderId,
         sampleCount,
-        blobPart: buffer,
+        blobPart: buffer
       }))
     ) {
-      console.error('failed to add blob part');
+      console.error("failed to add blob part");
     }
   }
   @boundMethod private async onStartRecording(data: {
@@ -47,7 +47,7 @@ export default class RecorderWithDatabase extends Recorder {
   }) {
     const recordingId = await this.#database.create(data);
     if (recordingId === null) {
-      console.error('failed to create recording database item: %o', data);
+      console.error("failed to create recording database item: %o", data);
       return;
     }
   }

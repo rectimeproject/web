@@ -1,11 +1,11 @@
-import { createContext, useContext } from 'react';
-import RecorderDatabase from './RecorderDatabase';
+import {createContext, useContext} from "react";
+import RecorderDatabase from "./RecorderDatabase";
 
 const RecorderDatabaseContext = createContext<RecorderDatabase | null>(null);
 
 export function useRecorderDatabaseContext() {
   const ctx = useContext(RecorderDatabaseContext);
-  if (ctx === null) throw new Error('Failed to get recorder database context');
+  if (ctx === null) throw new Error("Failed to get recorder database context");
   return ctx;
 }
 

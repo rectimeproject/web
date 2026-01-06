@@ -7,11 +7,11 @@ export default function secondsToHumanReadable(seconds: number) {
   const out = new Array<[number, string]>();
   const nonZeroOut = new Array<[number, string]>();
 
-  for (const { value, label } of [
-    { label: 'd', value: Day },
-    { label: 'h', value: Hour },
-    { label: 'm', value: Minute },
-    { label: 's', value: Second },
+  for (const {value, label} of [
+    {label: "d", value: Day},
+    {label: "h", value: Hour},
+    {label: "m", value: Minute},
+    {label: "s", value: Second}
   ]) {
     const count = Math.floor(seconds / value);
     seconds -= value * count;
@@ -25,5 +25,5 @@ export default function secondsToHumanReadable(seconds: number) {
   if (!nonZeroOut.length) {
     n = out.slice(out.length - 1);
   }
-  return n.map((t) => t.join(' ')).join(', ');
+  return n.map(t => t.join(" ")).join(", ");
 }

@@ -1,20 +1,16 @@
 {
-  "include": [
-    "src"
-  ],
+  "include": ["src", "vite.config.ts"],
   "compilerOptions": {
     "noEmit": true,
-    "types": [],
-    "jsx": "preserve",
-    "lib": [
-      "ESNext",
-      "DOM"
-    ],
+    "types": ["vite/client", "vitest/globals", "react", "react-dom"],
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM"],
     "incremental": true,
     "composite": true,
     "target": "esnext",
     "experimentalDecorators": true,
-    "module": "esnext",
+    "module": "ESNext",
+    "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -40,7 +36,6 @@
     "skipLibCheck": true,
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true
   }

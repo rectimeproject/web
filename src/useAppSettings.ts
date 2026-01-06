@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import AppDatabase from './AppDatabase';
+import {useCallback, useMemo, useRef, useState} from "react";
+import AppDatabase from "./AppDatabase";
 
 export interface IPreferredDevice {
   deviceId: string;
@@ -7,7 +7,7 @@ export interface IPreferredDevice {
 }
 
 export default function useAppSettings() {
-  const db = useRef(new AppDatabase('app', 1));
+  const db = useRef(new AppDatabase("app", 1));
   const [isGettingPreferredDevice, setIsGettingPreferredDevice] =
     useState(false);
   const [preferredDevice, setPreferredDevice] =
@@ -19,22 +19,22 @@ export default function useAppSettings() {
     }
     setIsGettingPreferredDevice(true);
     db.current
-      .transaction('appSettings', 'readonly')
-      .objectStore('appSettings')
-      .index('key')
-      .get('preferredInputDevice')
-      .then((value) => {
+      .transaction("appSettings", "readonly")
+      .objectStore("appSettings")
+      .index("key")
+      .get("preferredInputDevice")
+      .then(value => {
         setPreferredDevice(
           value
             ? {
                 groupId: value.groupId,
-                deviceId: value.deviceId,
+                deviceId: value.deviceId
               }
             : null
         );
       })
-      .catch((reason) => {
-        console.error('failed to get preferred device with error: %o', reason);
+      .catch(reason => {
+        console.error("failed to get preferred device with error: %o", reason);
         setPreferredDevice(null);
       })
       .finally(() => {
@@ -56,15 +56,15 @@ export default function useAppSettings() {
           return;
         setIsSettingPreferredDevice(true);
         db.current
-          .transaction('appSettings', 'readwrite')
-          .objectStore('appSettings')
+          .transaction("appSettings", "readwrite")
+          .objectStore("appSettings")
           .put({
-            key: 'preferredInputDevice',
+            key: "preferredInputDevice",
             groupId: device.groupId,
-            deviceId: device.deviceId,
+            deviceId: device.deviceId
           })
-          .then((result) => {
-            console.log('set %s to: %o', result, device);
+          .then(result => {
+            console.log("set %s to: %o", result, device);
             getPreferredDevice();
           })
           .finally(() => {
@@ -72,13 +72,13 @@ export default function useAppSettings() {
           });
       },
       preferredDevice,
-      isGettingPreferredDevice,
+      isGettingPreferredDevice
     }),
     [
       getPreferredDevice,
       isSettingPreferredDevice,
       preferredDevice,
-      isGettingPreferredDevice,
+      isGettingPreferredDevice
     ]
   );
 }

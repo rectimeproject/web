@@ -4,7 +4,7 @@ export default function ActivityIndicator(
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      style={{ margin: 'auto', background: 'none' }}
+      style={{margin: "auto", background: "none"}}
       // width="200"
       // height="200"
       viewBox="0 0 100 100"
@@ -12,7 +12,15 @@ export default function ActivityIndicator(
       preserveAspectRatio="xMidYMid"
       {...svgProps}
     >
-      <rect width="3" height="12" x="48.5" y="24" fill="#0a0a0a" rx="0" ry="0">
+      <rect
+        width="3"
+        height="12"
+        x="48.5"
+        y="24"
+        fill="#0a0a0a"
+        rx="0"
+        ry="0"
+      >
         <animate
           attributeName="opacity"
           begin="-0.9166666666666666s"
