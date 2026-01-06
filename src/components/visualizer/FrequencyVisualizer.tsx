@@ -48,24 +48,32 @@ export default function FrequencyVisualizer({
           analyserNode.maxDecibels = -10;
 
           const data = new Uint8Array(analyserNode.frequencyBinCount);
-          const barWidth = dimensions.width / barCount;
+          const barSpacing = 2;
+          const barWidth = Math.max(
+            2,
+            (dimensions.width - barSpacing * (barCount - 1)) / barCount
+          );
           let frameId: number;
 
           const draw = () => {
             analyserNode.getByteFrequencyData(data);
 
             barsRef.current.forEach((bar, i) => {
-              // Scale to 80% of canvas height with minimum 4px
               const rawHeight = data[i] ?? 0;
-              // Use the full 80% height range for better visibility
+              // Bars grow from center, occupying up to 80% of canvas height total
               const maxBarHeight = dimensions.height * 0.8;
-              const height = Math.max((rawHeight / 255) * maxBarHeight, 4);
-              const x = i * barWidth;
-              // Center vertically in the canvas
-              const y = (dimensions.height - height) / 2;
+              const minBarHeight = 4;
+              const height = Math.max(
+                (rawHeight / 255) * maxBarHeight,
+                minBarHeight
+              );
+              const x = i * (barWidth + barSpacing);
+              // Position bar from vertical center, growing up and down equally
+              const centerY = dimensions.height / 2;
+              const y = centerY - height / 2;
 
               bar.clear();
-              bar.rect(x, y, barWidth - 1, height);
+              bar.rect(x, y, barWidth, height);
               bar.fill(barColor);
             });
 

@@ -59,11 +59,12 @@ export function useTimelineWaveform({
     const startIndex = Math.max(0, waveformSamples.length - maxSamplesInWindow);
     const visibleSamples = waveformSamples.slice(startIndex);
 
-    // Calculate bar width - fit all visible samples into canvas width
-    const barSpacing = 1;
+    // Calculate bar width - fit all visible samples into canvas width with consistent spacing
+    const barSpacing = 2;
     const barWidth = Math.max(
       2,
-      dimensions.width / visibleSamples.length - barSpacing
+      (dimensions.width - barSpacing * (visibleSamples.length - 1)) /
+        visibleSamples.length
     );
 
     // Clear all bars first
@@ -106,11 +107,13 @@ export function useTimelineWaveform({
       // Apply logarithmic scaling for better visual representation
       const normalizedAmp = Math.min(amplitude / 100, 1);
       const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
-      // Use the full 80% height range for better visibility
+      // Bars grow from center, occupying up to 80% of canvas height total
       const maxBarHeight = dimensions.height * 0.8;
-      const height = Math.max(boostedAmp * maxBarHeight, 4);
-      // Center vertically in the canvas
-      const y = (dimensions.height - height) / 2;
+      const minBarHeight = 4;
+      const height = Math.max(boostedAmp * maxBarHeight, minBarHeight);
+      // Position bar from vertical center, growing up and down equally
+      const centerY = dimensions.height / 2;
+      const y = centerY - height / 2;
 
       bar.clear();
 
