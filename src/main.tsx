@@ -1,6 +1,6 @@
+import webrtcAdapter from "webrtc-adapter";
 import "./index.scss";
 import "@material-design-icons/font/index.css";
-import webrtcAdapter from "webrtc-adapter";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
@@ -17,7 +17,7 @@ import RecordScreen from "./RecordScreen";
 import RecordingListScreen from "./RecordingListScreen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-
+import { SpeedInsights } from "@vercel/speed-insights/react";
 async function render() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -62,6 +62,7 @@ async function render() {
 
   root.render(
     <StrictMode>
+      <SpeedInsights />
       <QueryClientProvider client={queryClient}>
         <ReactQueryDevtools initialIsOpen={false} />
         <RecorderDatabaseContext.Provider value={recorderDatabase}>

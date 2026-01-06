@@ -16,7 +16,7 @@
     "target": "esnext",
     "experimentalDecorators": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

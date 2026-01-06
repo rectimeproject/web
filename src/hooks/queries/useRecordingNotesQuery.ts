@@ -2,14 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import useRecordingNotes from '../../useRecordingNotes';
 
-export const useRecordingNotesQuery = (recordingId: string | undefined) => {
+export const useRecordingNotesQuery = (recordingId: string | null) => {
   const recordingNotes = useRecordingNotes();
 
   return useQuery({
-    queryKey: queryKeys.recordingNotes.byRecording(recordingId!),
+    queryKey: recordingId !== null ? queryKeys.recordingNotes.byRecording(recordingId) : ['recordingNotes', 'null'],
     queryFn: async () => {
-      return await recordingNotes.getRecordingNotesByRecordingId(recordingId!);
+      if (recordingId === null) {
+        throw new Error('Recording ID is required');
+      }
+      return await recordingNotes.getRecordingNotesByRecordingId(recordingId);
     },
-    enabled: !!recordingId,
+    enabled: recordingId !== null,
   });
 };

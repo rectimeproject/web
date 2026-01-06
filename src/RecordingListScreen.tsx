@@ -57,6 +57,8 @@ export default function RecordingListScreen() {
 
   // Handle name updates with debouncing
   useEffect(() => {
+    const timeoutIds: NodeJS.Timeout[] = [];
+
     for (const [id, name] of newRecordingNames) {
       const recording = recordings.find((r) => r.id === id);
       if (!recording) {
@@ -75,8 +77,12 @@ export default function RecordingListScreen() {
         });
       }, 500);
 
-      return () => clearTimeout(timeoutId);
+      timeoutIds.push(timeoutId);
     }
+
+    return () => {
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
   }, [recordings, newRecordingNames, updateRecordingMutation]);
 
   const onScroll = useCallback(() => {

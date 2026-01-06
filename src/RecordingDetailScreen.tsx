@@ -16,6 +16,9 @@ export default function RecordingDetailScreen() {
   const player = useRecordingPlayer();
   const { recordingId } = useParams<{ recordingId: string }>();
 
+  // Convert undefined to null for explicit null handling
+  const recordingIdOrNull = recordingId ?? null;
+
   // Fetch recording and bookmarks using React Query
   const {
     data: recording,
@@ -23,12 +26,12 @@ export default function RecordingDetailScreen() {
     isError: isRecordingError,
     error: recordingError,
     refetch: refetchRecording,
-  } = useRecordingQuery(recordingId);
+  } = useRecordingQuery(recordingIdOrNull);
 
   const {
     data: recordingNotes,
     isLoading: isLoadingNotes,
-  } = useRecordingNotesQuery(recordingId);
+  } = useRecordingNotesQuery(recordingIdOrNull);
 
   const recordingBookmarks = useMemo(() => {
     if (!recordingNotes) return [];

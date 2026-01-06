@@ -96,12 +96,45 @@ export default function useRecordingNotes() {
     [database]
   );
 
+  const getRecordingNoteById = useCallback(
+    async (noteId: string): Promise<IRecordingNote | null> => {
+      try {
+        const note = await database
+          .transaction('recordingNotes', 'readonly')
+          .objectStore('recordingNotes')
+          .get(noteId);
+        return note ?? null;
+      } catch (error) {
+        console.error('Failed to fetch note:', error);
+        return null;
+      }
+    },
+    [database]
+  );
+
+  const deleteRecordingNote = useCallback(
+    async (noteId: string): Promise<void> => {
+      try {
+        await database
+          .transaction('recordingNotes', 'readwrite')
+          .objectStore('recordingNotes')
+          .delete(noteId);
+      } catch (error) {
+        console.error('Failed to delete note:', error);
+        throw error;
+      }
+    },
+    [database]
+  );
+
   return useMemo(
     () => ({
       createRecordingNote,
       recordingNotes,
       getRecordingNotesByRecordingId,
+      getRecordingNoteById,
+      deleteRecordingNote,
     }),
-    [recordingNotes, createRecordingNote, getRecordingNotesByRecordingId]
+    [recordingNotes, createRecordingNote, getRecordingNotesByRecordingId, getRecordingNoteById, deleteRecordingNote]
   );
 }

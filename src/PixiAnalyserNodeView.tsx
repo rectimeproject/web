@@ -304,6 +304,8 @@ export default function PixiAnalyserNodeView({
         bar.fill({ color: barColor, alpha: 1 });
       }
     }
+
+    return undefined;
   }, [
     visualizationMode,
     analyserNode,

@@ -46,7 +46,8 @@ export default function useDebugAudioVisualizer() {
         for (const t of result.stream.getTracks()) {
           t.stop();
         }
-        await recorder.audioContext.suspend();
+        // Don't suspend audio context - it's shared with the recorder
+        // Suspending it would pause any active recording
       })
       .catch((reason) => {
         console.error(

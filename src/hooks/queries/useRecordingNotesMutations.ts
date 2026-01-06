@@ -70,13 +70,13 @@ export const useDeleteRecordingNoteMutation = () => {
 
   return useMutation({
     mutationFn: async ({ noteId }: { noteId: string }) => {
-      await recordingNotes.deleteNote(noteId);
+      await recordingNotes.deleteRecordingNote(noteId);
       return noteId;
     },
     onMutate: async ({ noteId }) => {
       // Find which recording this note belongs to
       // We'll need the recordingId to invalidate the correct query
-      const note = await recordingNotes.getRecordingNote(noteId);
+      const note = await recordingNotes.getRecordingNoteById(noteId);
       if (!note) return { previous: null, recordingId: null };
 
       const recordingId = note.recordingId;
@@ -89,7 +89,7 @@ export const useDeleteRecordingNoteMutation = () => {
       // Snapshot previous value
       const previous = queryClient.getQueryData<IRecordingNote[]>(
         queryKeys.recordingNotes.byRecording(recordingId)
-      );
+      ) ?? null;
 
       // Optimistically remove
       queryClient.setQueryData(

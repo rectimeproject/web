@@ -7,28 +7,28 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import useInterval from './useInterval';
-import secondsToHumanReadable from './secondsToHumanReadable';
-import useRecordings from './useRecordings';
-import useRecorderContext from './useRecorderContext';
-import useRecorderDatabase from './useRecorderDatabase';
-import { CodecId } from 'opus-codec-worker/actions/actions';
-import { RecorderStateType } from './Recorder';
-import { filesize } from 'filesize';
-import Icon from './Icon';
-import PixiAnalyserNodeView from './PixiAnalyserNodeView';
-import { AnalyserNode, IAudioContext } from 'standardized-audio-context';
-import { useNavigate } from 'react-router';
-import useNavigatorStorage from './useNavigatorStorage';
-import ActivityIndicator from './ActivityIndicator';
-import useMediaDevices from './useMediaDevices';
-import useAppSettings from './useAppSettings';
-import useDebounce from './useDebounce';
-import useRecordingNotes from './useRecordingNotes';
-import useDebugAudioVisualizer from './useDebugAudioVisualizer';
-import useTheme from './useTheme';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+} from "react";
+import useInterval from "./useInterval";
+import secondsToHumanReadable from "./secondsToHumanReadable";
+import useRecordings from "./useRecordings";
+import useRecorderContext from "./useRecorderContext";
+import useRecorderDatabase from "./useRecorderDatabase";
+import { CodecId } from "opus-codec-worker/actions/actions";
+import { RecorderStateType } from "./Recorder";
+import { filesize } from "filesize";
+import Icon from "./Icon";
+import PixiAnalyserNodeView from "./PixiAnalyserNodeView";
+import { AnalyserNode, IAudioContext } from "standardized-audio-context";
+import { useNavigate } from "react-router";
+import useNavigatorStorage from "./useNavigatorStorage";
+import ActivityIndicator from "./ActivityIndicator";
+import useMediaDevices from "./useMediaDevices";
+import useAppSettings from "./useAppSettings";
+import useDebounce from "./useDebounce";
+import useRecordingNotes from "./useRecordingNotes";
+import useDebugAudioVisualizer from "./useDebugAudioVisualizer";
+import useTheme from "./useTheme";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function RecordingListScreen() {
   const theme = useTheme();
@@ -49,19 +49,20 @@ export default function RecordingListScreen() {
       db.getRecordingByEncoderId(recordings.recording.encoderId);
     }
   }, [db, recordings]);
-  const [analyserNode, setAnalyserNode] = useState<AnalyserNode<IAudioContext> | null>(null);
+  const [analyserNode, setAnalyserNode] =
+    useState<AnalyserNode<IAudioContext> | null>(null);
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
-    navigate('/recordings');
+    navigate("/recordings");
   }, [navigate]);
   const visualizationMode = useMemo(
     () =>
-    ({
-      type: 'timeline',
-      samplesPerSecond: 20,
-      timeWindowSeconds: 10, // Show last 10 seconds (scrolling window)
-    } as const),
+      ({
+        type: "timeline",
+        samplesPerSecond: 20,
+        timeWindowSeconds: 10, // Show last 10 seconds (scrolling window)
+      } as const),
     []
   );
 
@@ -74,18 +75,20 @@ export default function RecordingListScreen() {
 
   // Capture waveform data during recording
   useEffect(() => {
-    console.log('[RecordScreen] Waveform capture effect triggered', {
+    console.log("[RecordScreen] Waveform capture effect triggered", {
       isRecording: recordings.isRecording,
-      hasAnalyserNode: !!analyserNode
+      hasAnalyserNode: !!analyserNode,
     });
 
     if (!recordings.isRecording || !analyserNode) {
-      console.log('[RecordScreen] Clearing waveform samples - not recording or no analyser');
+      console.log(
+        "[RecordScreen] Clearing waveform samples - not recording or no analyser"
+      );
       setWaveformSamples([]);
       return;
     }
 
-    console.log('[RecordScreen] Starting waveform capture');
+    console.log("[RecordScreen] Starting waveform capture");
     analyserNode.fftSize = 2 ** 11; // Higher resolution for better waveform
     analyserNode.smoothingTimeConstant = 0.3; // Smooth out the waveform
 
@@ -101,22 +104,32 @@ export default function RecordingListScreen() {
       // Calculate RMS (Root Mean Square) for better amplitude representation
       let sumSquares = 0;
       for (let i = 0; i < dataArray.length; i++) {
-        const normalized = (dataArray[i] - 128) / 128; // Center around 0
-        sumSquares += normalized * normalized;
+        const value = dataArray[i] ?? null;
+        if (value !== null) {
+          const normalized = (value - 128) / 128; // Center around 0
+          sumSquares += normalized * normalized;
+        }
       }
       const rms = Math.sqrt(sumSquares / dataArray.length);
       const amplitude = rms * 255; // Scale back to 0-255 range
 
       sampleCount++;
-      if (sampleCount % 20 === 0) { // Log every second
-        console.log(`[RecordScreen] Captured ${sampleCount} samples, latest amplitude: ${amplitude.toFixed(2)}`);
+      if (sampleCount % 20 === 0) {
+        // Log every second
+        console.log(
+          `[RecordScreen] Captured ${sampleCount} samples, latest amplitude: ${amplitude.toFixed(
+            2
+          )}`
+        );
       }
 
-      setWaveformSamples(prev => [...prev, amplitude]);
+      setWaveformSamples((prev) => [...prev, amplitude]);
     }, intervalMs);
 
     return () => {
-      console.log(`[RecordScreen] Stopping waveform capture, total samples: ${sampleCount}`);
+      console.log(
+        `[RecordScreen] Stopping waveform capture, total samples: ${sampleCount}`
+      );
       clearInterval(captureInterval);
     };
   }, [recordings.isRecording, analyserNode]);
@@ -146,7 +159,7 @@ export default function RecordingListScreen() {
       if (recorder === null) {
         return;
       }
-      recorder.on('startRecording', onStartRecording);
+      recorder.on("startRecording", onStartRecording);
       const currentState = recorder.currentState();
       switch (currentState.type) {
         case RecorderStateType.Recording:
@@ -158,7 +171,7 @@ export default function RecordingListScreen() {
     return () => {
       recorderContext.recorder.then(async (recorder) => {
         if (recorder) {
-          recorder.off('startRecording', onStartRecording);
+          recorder.off("startRecording", onStartRecording);
         }
       });
     };
@@ -189,7 +202,7 @@ export default function RecordingListScreen() {
     }
     if (
       navigatorStorage.estimateResult !== null &&
-      typeof navigatorStorage.estimateResult.quota === 'number'
+      typeof navigatorStorage.estimateResult.quota === "number"
     ) {
       return navigatorStorage.estimateResult.quota;
     }
@@ -274,13 +287,18 @@ export default function RecordingListScreen() {
   useEffect(() => {
     recorderContext.recorder.then((rec) => {
       const state = rec?.currentState() ?? null;
-      console.log('[RecordScreen] Recorder state:', state?.type, 'has analyserNode:', !!(state && 'analyserNode' in state && state.analyserNode));
+      console.log(
+        "[RecordScreen] Recorder state:",
+        state?.type,
+        "has analyserNode:",
+        !!(state && "analyserNode" in state && state.analyserNode)
+      );
 
-      if (state === null || !('analyserNode' in state) || !state.analyserNode) {
+      if (state === null || !("analyserNode" in state) || !state.analyserNode) {
         setAnalyserNode(null);
         return;
       }
-      console.log('[RecordScreen] Setting analyserNode from recorder state');
+      console.log("[RecordScreen] Setting analyserNode from recorder state");
       setAnalyserNode(state.analyserNode);
     });
   }, [recordings.isRecording, recordings.recording, recorderContext]);
@@ -297,46 +315,56 @@ export default function RecordingListScreen() {
 
   // Fetch bookmarks using useQuery
   const { data: recordingBookmarks = [] } = useQuery({
-    queryKey: ['recordingBookmarks', recording?.id],
+    queryKey: ["recordingBookmarks", recording?.id ?? null],
     queryFn: async () => {
-      if (!recording?.id) return [];
-      const notes = await recordingNotes.getRecordingNotesByRecordingId(recording.id);
-      return notes.map(n => ({
+      if (recording === null || !recording.id) return [];
+      const notes = await recordingNotes.getRecordingNotesByRecordingId(
+        recording.id
+      );
+      return notes.map((n) => ({
         id: n.id,
         durationOffset: n.durationOffset,
         title: n.title,
       }));
     },
-    enabled: !!recording?.id,
+    enabled: recording !== null && !!recording.id,
   });
 
   const [recentBookmark, setRecentBookmark] = useState(false);
 
   // Create bookmark using useMutation
   const createBookmarkMutation = useMutation({
-    mutationFn: async ({ recordingId, duration }: { recordingId: string; duration: number }) => {
+    mutationFn: async ({
+      recordingId,
+      duration,
+    }: {
+      recordingId: string;
+      duration: number;
+    }) => {
       recordingNotes.createRecordingNote(recordingId, duration);
     },
     onMutate: async ({ duration }) => {
       // Optimistic update: add the new bookmark immediately
       const newBookmark = {
-        id: crypto.getRandomValues(new Uint32Array(4)).join('-'),
+        id: crypto.getRandomValues(new Uint32Array(4)).join("-"),
         durationOffset: duration,
-        title: '',
+        title: "",
       };
       queryClient.setQueryData(
-        ['recordingBookmarks', recording?.id],
+        ["recordingBookmarks", recording?.id],
         (old: typeof recordingBookmarks) => [...(old ?? []), newBookmark]
       );
     },
     onSettled: () => {
       // Refetch to ensure data is up to date
-      queryClient.invalidateQueries({ queryKey: ['recordingBookmarks', recording?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["recordingBookmarks", recording?.id],
+      });
     },
   });
 
   const createRecordingNote = useCallback(() => {
-    if (recording) {
+    if (recording !== null) {
       createBookmarkMutation.mutate({
         recordingId: recording.id,
         duration: recording.duration,
@@ -359,34 +387,37 @@ export default function RecordingListScreen() {
                   ref={onCanvasContainerElementMount}
                 >
                   {canvasContainerDimensions !== null ? (
-                      <>
-                        {console.log('[RecordScreen] Rendering PixiAnalyserNodeView', {
+                    <>
+                      {console.log(
+                        "[RecordScreen] Rendering PixiAnalyserNodeView",
+                        {
                           canvasWidth: canvasContainerDimensions.width,
                           canvasHeight: 256,
                           isRecording: recordings.isRecording,
                           hasAnalyserNode: !!analyserNode,
                           waveformSamplesLength: waveformSamples.length,
                           visualizationMode,
-                        })}
-                        <PixiAnalyserNodeView
-                          canvasWidth={canvasContainerDimensions.width}
-                          canvasHeight={256}
-                          visualizationMode={visualizationMode}
-                          isPlaying
-                          analyserNode={
-                            recordings.isRecording
-                              ? analyserNode
-                              : debugAudioVisualizer.analyserNode
-                          }
-                          bookmarks={recordingBookmarks}
-                          currentDuration={recording?.duration ?? 0}
-                          backgroundColor={theme.colors.background}
-                          barColor={theme.colors.barColor}
-                          bookmarkColor={theme.colors.bookmarkColor}
-                          waveformSamples={waveformSamples}
-                          playbackPosition={0}
-                        />
-                      </>
+                        }
+                      )}
+                      <PixiAnalyserNodeView
+                        canvasWidth={canvasContainerDimensions.width}
+                        canvasHeight={256}
+                        visualizationMode={visualizationMode}
+                        isPlaying
+                        analyserNode={
+                          recordings.isRecording
+                            ? analyserNode
+                            : debugAudioVisualizer.analyserNode
+                        }
+                        bookmarks={recordingBookmarks}
+                        currentDuration={recording?.duration ?? 0}
+                        backgroundColor={theme.colors.background}
+                        barColor={theme.colors.barColor}
+                        bookmarkColor={theme.colors.bookmarkColor}
+                        waveformSamples={waveformSamples}
+                        playbackPosition={0}
+                      />
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -406,10 +437,10 @@ export default function RecordingListScreen() {
                     }
                   >
                     {recordings.isStoppingToRecord ||
-                      recordings.isStartingToRecord ? (
+                    recordings.isStartingToRecord ? (
                       <ActivityIndicator />
                     ) : (
-                      <Icon name={recordings.isRecording ? 'stop' : 'mic'} />
+                      <Icon name={recordings.isRecording ? "stop" : "mic"} />
                     )}
                   </div>
                 </div>
@@ -431,15 +462,17 @@ export default function RecordingListScreen() {
                     <Icon
                       name={
                         debugAudioVisualizer.isDebugging
-                          ? 'close'
-                          : 'remove_red_eye'
+                          ? "close"
+                          : "remove_red_eye"
                       }
                     />
                   </div>
                 )}
                 {recordings.recording !== null && (
                   <div
-                    className={`button ${recentBookmark ? 'bookmark-created' : ''}`}
+                    className={`button ${
+                      recentBookmark ? "bookmark-created" : ""
+                    }`}
                     onClick={createRecordingNote}
                   >
                     <Icon name="add" />
@@ -497,11 +530,11 @@ export default function RecordingListScreen() {
                 id="microphone_device"
                 className="form-select"
                 onChange={onChangeDeviceId}
-                value={deviceId ?? ''}
+                value={deviceId ?? ""}
               >
                 <option></option>
                 {mediaDevices.devices
-                  .filter((d) => d.kind === 'audioinput')
+                  .filter((d) => d.kind === "audioinput")
                   .map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
                       {d.label}

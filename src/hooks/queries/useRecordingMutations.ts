@@ -9,7 +9,9 @@ export const useUpdateRecordingMutation = () => {
 
   return useMutation({
     mutationFn: async (recording: RecordingV1) => {
-      await db.put('recordings', recording);
+      await db.transaction('recordings', 'readwrite')
+        .objectStore('recordings')
+        .put(recording);
       return recording;
     },
     onMutate: async (newRecording) => {
@@ -77,7 +79,9 @@ export const useDeleteRecordingMutation = () => {
 
   return useMutation({
     mutationFn: async (recordingId: string) => {
-      await db.delete('recordings', recordingId);
+      await db.transaction('recordings', 'readwrite')
+        .objectStore('recordings')
+        .delete(recordingId);
       return recordingId;
     },
     onMutate: async (recordingId) => {
