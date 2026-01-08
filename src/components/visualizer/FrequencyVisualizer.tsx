@@ -94,6 +94,12 @@ export default function FrequencyVisualizer({
           const draw = () => {
             analyserNode.getByteFrequencyData(data);
 
+            // Calculate total width needed for all bars
+            const totalBarsWidth =
+              barCount * barWidth + (barCount - 1) * barSpacing;
+            // Center the bars horizontally
+            const startX = (dimensions.width - totalBarsWidth) / 2;
+
             // Auto-scroll effect: move bars to the left over time
             scrollOffsetRef.current += 0.5;
             if (scrollOffsetRef.current >= barWidth + barSpacing) {
@@ -108,24 +114,36 @@ export default function FrequencyVisualizer({
               const normalizedHeight = (rawHeight / 255) * maxBarHeight;
               const height = Math.max(normalizedHeight, minBarHeight);
 
-              const x = i * (barWidth + barSpacing) - scrollOffsetRef.current;
+              // Position bars from center with scroll offset
+              const x =
+                startX + i * (barWidth + barSpacing) - scrollOffsetRef.current;
               const centerY = dimensions.height / 2;
               const y = centerY - height / 2;
 
-              // Draw backdrop (full height at 80%)
-              const backdrop = backdropsRef.current[i];
-              if (backdrop) {
-                const backdropHeight = maxBarHeight;
-                const backdropY = centerY - backdropHeight / 2;
-                backdrop.clear();
-                backdrop.rect(x, backdropY, barWidth, backdropHeight);
-                backdrop.fill(backdropColor);
-              }
+              // Only draw bars that are visible in the canvas
+              if (x + barWidth >= 0 && x <= dimensions.width) {
+                // Draw backdrop (full height at 80%)
+                const backdrop = backdropsRef.current[i];
+                if (backdrop) {
+                  const backdropHeight = maxBarHeight;
+                  const backdropY = centerY - backdropHeight / 2;
+                  backdrop.clear();
+                  backdrop.rect(x, backdropY, barWidth, backdropHeight);
+                  backdrop.fill(backdropColor);
+                }
 
-              // Draw actual frequency bar
-              bar.clear();
-              bar.rect(x, y, barWidth, height);
-              bar.fill(colors.barColor);
+                // Draw actual frequency bar
+                bar.clear();
+                bar.rect(x, y, barWidth, height);
+                bar.fill(colors.barColor);
+              } else {
+                // Clear bars outside visible area
+                bar.clear();
+                const backdrop = backdropsRef.current[i];
+                if (backdrop) {
+                  backdrop.clear();
+                }
+              }
             });
 
             frameId = requestAnimationFrame(draw);
@@ -144,7 +162,8 @@ export default function FrequencyVisualizer({
           dimensions,
           colors.barColor,
           backdropColor,
-          barsRef
+          barsRef,
+          barCount
         ]);
 
         return null;
