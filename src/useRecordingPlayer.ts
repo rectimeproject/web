@@ -15,7 +15,7 @@ import {
 } from "standardized-audio-context";
 import useInterval from "./useInterval";
 import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
-import {RingBuffer} from "opus-codec/opus";
+import {RingBufferF32} from "ringbud";
 
 interface IScheduleItem {
   audioBuffer: IAudioBuffer;
@@ -31,7 +31,7 @@ export interface IImmutablePlayingState {
 interface IState {
   destroying: Promise<void> | null;
   recordingId: string;
-  ringBuffer: RingBuffer;
+  ringBuffer: RingBufferF32;
   decoderId: string | null;
   /**
    * if null, it means we're waiting for the first slice to be ready
@@ -156,7 +156,7 @@ export default function useRecordingPlayer() {
             /**
              * defer a full second of a recording before actually playing
              */
-            ringBuffer: new RingBuffer(recording.sampleRate),
+            ringBuffer: new RingBufferF32(recording.sampleRate),
             recordingId: recording.id,
             schedule,
             durationOffset: 0,
