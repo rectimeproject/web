@@ -1,46 +1,40 @@
-import {useCallback, useMemo, useState} from "react";
+import {useQuery} from "@tanstack/react-query";
+import {useCallback, useEffect, useMemo, useState} from "react";
 
 export interface IStorageEstimate {
-  quota?: number;
-  usage?: number;
+  quota: number | null;
+  usage: number | null;
 }
 
 export default function useNavigatorStorage() {
-  const [estimateResult, setEstimateResult] = useState<IStorageEstimate | null>(
-    null
-  );
-  const [isEstimating, setIsEstimating] = useState(false);
-  const [hasLoadedInitialEstimation, setHasLoadedInitialEstimation] =
-    useState(false);
-  const estimate = useCallback(() => {
-    if (isEstimating) {
-      return;
+  const estimateQuery = useQuery({
+    queryKey: ["navigator-storage-estimate"],
+    queryFn: async () => {
+      const result = await navigator.storage.estimate();
+      const newResult: IStorageEstimate = {
+        quota: null,
+        usage: null
+      };
+      if (typeof result.quota === "number") {
+        newResult.quota = result.quota;
+      }
+      if (typeof result.usage === "number") {
+        newResult.usage = result.usage;
+      }
+      return newResult;
     }
-    setIsEstimating(true);
-    navigator.storage
-      .estimate()
-      .then(result => {
-        const newResult: IStorageEstimate = {};
-        if (typeof result.quota === "number") {
-          newResult.quota = result.quota;
-        }
-        if (typeof result.usage === "number") {
-          newResult.usage = result.usage;
-        }
-        setEstimateResult(newResult);
-      })
-      .finally(() => {
-        setIsEstimating(false);
-        setHasLoadedInitialEstimation(true);
-      });
-  }, [setEstimateResult, isEstimating, setIsEstimating]);
+  });
+  const {
+    data: estimateResult,
+    isFetching: isEstimating,
+    isSuccess: hasLoadedInitialEstimation
+  } = estimateQuery;
   return useMemo(
     () => ({
       hasLoadedInitialEstimation,
       isEstimating,
-      estimate,
-      estimateResult
+      estimateResult: estimateResult ?? null
     }),
-    [estimate, estimateResult, hasLoadedInitialEstimation, isEstimating]
+    [estimateResult, hasLoadedInitialEstimation, isEstimating]
   );
 }

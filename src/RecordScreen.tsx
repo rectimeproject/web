@@ -1,5 +1,4 @@
 import {
-  ChangeEvent,
   ChangeEventHandler,
   useCallback,
   useEffect,
@@ -30,6 +29,7 @@ import useRecordingNotes from "./useRecordingNotes";
 import useDebugAudioVisualizer from "./useDebugAudioVisualizer";
 import useTheme from "./useTheme";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {randomUUID} from "./lib/randomUUID";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
@@ -205,14 +205,19 @@ export default function RecordingListScreen() {
     return 0;
   }, [navigatorStorage, recording]);
   const [localBitrate, setLocalBitrate] = useState<number | null>(null);
-  const onChangeBitrate = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    if (
-      Number.isInteger(e.target.valueAsNumber) ||
-      !Number.isNaN(e.target.valueAsNumber)
-    ) {
-      setLocalBitrate(e.target.valueAsNumber);
-    }
-  }, []);
+  const onChangeBitrate = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    e => {
+      const newBitrate = e.target.valueAsNumber;
+      if (
+        Number.isInteger(newBitrate) ||
+        !Number.isNaN(newBitrate) ||
+        !Number.isFinite(newBitrate)
+      ) {
+        setLocalBitrate(newBitrate);
+      }
+    },
+    []
+  );
   /**
    * if current recording bitrate changes, change local bitrate
    */
@@ -276,11 +281,6 @@ export default function RecordingListScreen() {
     }
   }, [recordings.isRecording, checkRecordingInterval]);
   useEffect(() => {
-    if (!navigatorStorage.hasLoadedInitialEstimation) {
-      navigatorStorage.estimate();
-    }
-  }, [navigatorStorage]);
-  useEffect(() => {
     recorderContext.recorder.then(rec => {
       const state = rec?.currentState() ?? null;
       console.log(
@@ -343,7 +343,7 @@ export default function RecordingListScreen() {
     onMutate: async ({duration}) => {
       // Optimistic update: add the new bookmark immediately
       const newBookmark = {
-        id: crypto.getRandomValues(new Uint32Array(4)).join("-"),
+        id: randomUUID(),
         durationOffset: duration,
         title: ""
       };

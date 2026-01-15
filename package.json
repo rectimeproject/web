@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.16",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/user-event": "^13.5.0",
@@ -14,8 +15,8 @@
     "history": "^5.3.0",
     "idb-javascript": "0.x",
     "luxon": "^3.7.2",
-    "opus-codec": "^0.0.86",
-    "opus-codec-worker": "^0.0.86",
+    "opus-codec": "^1.0.0",
+    "opus-codec-worker": "^1.0.0",
     "pixi.js": "^8.15.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

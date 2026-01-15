@@ -1,4 +1,4 @@
-import webrtcAdapter from "webrtc-adapter";
+import "webrtc-adapter";
 import "./index.scss";
 import "./styles/global.css";
 import "@material-design-icons/font/index.css";
@@ -14,10 +14,12 @@ import RecorderDatabase from "./RecorderDatabase";
 import RecorderDatabaseContext from "./RecorderDatabaseContext";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
-import {ReactQueryDevtools} from "@tanstack/react-query-devtools";
 import {SpeedInsights} from "@vercel/speed-insights/react";
 import ActivityIndicator from "./ActivityIndicator";
 
+const ReactQueryDevtools = lazy(async () => ({
+  default: (await import("@tanstack/react-query-devtools")).ReactQueryDevtools
+}));
 // Lazy load route components
 const RecordingDetailScreen = lazy(() => import("./RecordingDetailScreen"));
 const RecordScreen = lazy(() => import("./RecordScreen"));
@@ -36,8 +38,6 @@ async function render() {
       }
     }
   });
-
-  console.log("webrtc adapter: %o", webrtcAdapter);
 
   const el = document.getElementById("root");
   if (!el) {
