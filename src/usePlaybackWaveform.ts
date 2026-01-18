@@ -48,7 +48,11 @@ export default function usePlaybackWaveform(
         // Calculate RMS amplitude
         let sum = 0;
         for (let i = 0; i < bufferLength; i++) {
-          const normalized = (dataArray[i] - 128) / 128;
+          const n = dataArray[i] ?? null;
+          if (n === null) {
+            continue;
+          }
+          const normalized = (n - 128) / 128;
           sum += normalized * normalized;
         }
         const rms = Math.sqrt(sum / bufferLength);
