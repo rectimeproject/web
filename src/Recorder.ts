@@ -24,6 +24,7 @@ import {
   OPUS_SET_BITRATE
 } from "opus-codec-worker/actions/opus";
 import * as opus from "opus-codec/opus";
+import OpusCodecWorker from "opus-codec-worker/worker?worker";
 
 export enum RecorderStateType {
   Idle,
@@ -36,7 +37,7 @@ export class Opus {
   readonly worker;
   readonly client;
   public constructor() {
-    this.worker = new Worker("/opus/worker.js");
+    this.worker = new OpusCodecWorker();
     this.client = new Client(this.worker);
     this.client
       .sendMessage(

@@ -16,7 +16,7 @@
     "idb-javascript": "0.x",
     "luxon": "^3.7.2",
     "opus-codec": "^1.0.0",
-    "opus-codec-worker": "^1.0.0",
+    "opus-codec-worker": "^1.0.1",
     "pixi.js": "^8.15.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
