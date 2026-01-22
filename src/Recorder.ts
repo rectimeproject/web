@@ -18,9 +18,7 @@ import {
 } from "standardized-audio-context";
 import {EventEmitter} from "eventual-js";
 import {
-  OPUS_GET_BANDWIDTH,
   OPUS_GET_BITRATE,
-  OPUS_GET_MAX_BANDWIDTH,
   OPUS_SET_BITRATE
 } from "opus-codec-worker/actions/opus";
 import * as opus from "opus-codec/opus";
