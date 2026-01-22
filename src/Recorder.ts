@@ -98,7 +98,17 @@ export default class Recorder extends EventEmitter<{
 }> {
   readonly #audioContext;
   readonly #opus;
-  readonly #opusCompliantDurations = [60, 40, 20, 10, 5, 2.5];
+  readonly #opusCompliantDurations = {
+    FRAME_SIZE_120_MS: 120,
+    FRAME_SIZE_100_MS: 100,
+    FRAME_SIZE_80_MS: 80,
+    FRAME_SIZE_60_MS: 60,
+    FRAME_SIZE_40_MS: 40,
+    FRAME_SIZE_20_MS: 20,
+    FRAME_SIZE_10_MS: 10,
+    FRAME_SIZE_5_MS: 5,
+    FRAME_SIZE_2_5_MS: 2.5
+  };
   #currentState: RecorderState;
   public constructor(audioContext: IAudioContext, opus: Opus) {
     super({
@@ -184,13 +194,11 @@ export default class Recorder extends EventEmitter<{
   }
   public async start({
     device,
-    maxDataBytes = 500,
-    frameSize: maybeFrameSize
-  }: Partial<{
-    frameSize: number;
+    maxDataBytes
+  }: {
     maxDataBytes: number;
     device: MediaDeviceInfo | null;
-  }> = {}): Promise<{
+  }): Promise<{
     encoderId: string;
     bitrate: number;
   } | null> {
@@ -201,36 +209,10 @@ export default class Recorder extends EventEmitter<{
       );
       return null;
     }
-    const supportedFrameSizes = this.#opusCompliantDurations.map(duration => ({
-      frameSize: (duration * this.#audioContext.sampleRate) / 1000,
-      duration
-    }));
-    if (typeof maybeFrameSize === "undefined") {
-      for (const fs2 of supportedFrameSizes) {
-        console.log(
-          "selecting %d ms frame size, because nothing else was provided: %d",
-          fs2.duration,
-          fs2.frameSize
-        );
-        maybeFrameSize = fs2.frameSize;
-        break;
-      }
-    }
-    if (typeof maybeFrameSize === "undefined") {
-      console.error("failed to find frame size automatically");
-      return null;
-    }
-    if (!supportedFrameSizes.some(fs => fs.frameSize === maybeFrameSize)) {
-      console.error(
-        "invalid frame size. supported frame sizes are: %o",
-        supportedFrameSizes
-      );
-      return null;
-    }
-    /**
-     * static frame size
-     */
-    const frameSize = maybeFrameSize;
+    const frameSize =
+      (this.#opusCompliantDurations.FRAME_SIZE_100_MS *
+        this.#audioContext.sampleRate) /
+      1000;
     const startingToRecord: IStartingToRecordRecorderState = {
       type: RecorderStateType.StartingToRecord
     };
@@ -246,7 +228,7 @@ export default class Recorder extends EventEmitter<{
           : true
       });
     } catch (reason) {
-      console.error("failed to get user media with error: %o", reason);
+      console.error("Failed to get user media with error: %o", reason);
       await this.#setStateToIdle();
       return null;
     }
@@ -290,20 +272,6 @@ export default class Recorder extends EventEmitter<{
       await this.#setStateToIdle();
       return null;
     }
-    console.log(
-      "bitrate: %o",
-      await Promise.all([
-        this.#opus.client.sendMessage(
-          getFromEncoder(OPUS_GET_BITRATE(encoderId.value))
-        ),
-        this.#opus.client.sendMessage(
-          getFromEncoder(OPUS_GET_BANDWIDTH(encoderId.value))
-        ),
-        this.#opus.client.sendMessage(
-          getFromEncoder(OPUS_GET_MAX_BANDWIDTH(encoderId.value))
-        )
-      ])
-    );
     if (!AudioWorkletNode) {
       console.error("AudioWorkletNode is not supported");
       return null;
@@ -379,7 +347,7 @@ export default class Recorder extends EventEmitter<{
           const result = await this.#opus.client.sendMessage(
             encodeFloat({
               input: {
-                pcm
+                pcm: pcm.slice(0)
               },
               maxDataBytes,
               encoderId: encoderId.value
@@ -393,23 +361,21 @@ export default class Recorder extends EventEmitter<{
             );
             return;
           }
-          if (result) {
-            if (result.value.encoded === null) {
-              console.debug(
-                "Encoder returned null (not enough data for full frame); pcmLength=%d, encoderId=%s",
-                pcm.length,
-                encoderId.value
-              );
-              return;
-            }
-            this.emit("encoded", {
-              size: result.value.encoded.buffer.byteLength,
-              sampleCount: pcm.length,
-              duration: result.value.encoded.duration,
-              buffer: result.value.encoded.buffer,
-              encoderId: encoderId.value
-            });
+          if (result.value.encoded === null) {
+            console.debug(
+              "Encoder returned null (not enough data for full frame); pcmLength=%d, encoderId=%s",
+              pcm.length,
+              encoderId.value
+            );
+            return;
           }
+          this.emit("encoded", {
+            size: result.value.encoded.buffer.byteLength,
+            sampleCount: pcm.length,
+            duration: result.value.encoded.duration,
+            buffer: result.value.encoded.buffer,
+            encoderId: encoderId.value
+          });
         })
         .catch(reason => {
           console.error("failure while trying to decode samples: %o", reason);
@@ -444,12 +410,13 @@ export default class Recorder extends EventEmitter<{
     ) {
       return;
     }
-    if (currentState.mediaStream) {
-      for (const t of currentState.mediaStream.getTracks()) {
+    const mediaStream = currentState.mediaStream ?? null;
+    if (mediaStream) {
+      for (const t of mediaStream.getTracks()) {
         try {
           t.stop();
         } catch (reason) {
-          console.error("failed to stop track");
+          console.error("Failed to stop track with error: %o", reason);
         }
       }
     }

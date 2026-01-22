@@ -1,41 +1,43 @@
 import {useParams} from "react-router";
-import {useCallback, useMemo, useState, lazy, Suspense} from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  lazy,
+  Suspense,
+  useRef,
+  memo
+} from "react";
 import useRecordingPlayer from "./useRecordingPlayer";
 import ActivityIndicator from "./ActivityIndicator";
 import {DateTime} from "luxon";
 import secondsToHumanReadable from "./secondsToHumanReadable";
 import Icon from "./Icon";
 import {filesize} from "filesize";
-import useTheme from "./useTheme";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
 import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 import {
   useUpdateRecordingNoteMutation,
   useDeleteRecordingNoteMutation
 } from "./hooks/queries/useRecordingNotesMutations";
-import usePlaybackWaveform from "./usePlaybackWaveform";
+import {ICreateDecoderOptions} from "opus-codec-worker/actions/actions";
+import OpusCodecOptions from "./OpusCodecOptions";
 
-// Lazy load heavy components
-const TimelineVisualizer = lazy(
-  () => import("./components/visualizer/TimelineVisualizer")
-);
-const BookmarkPanel = lazy(
-  () => import("./components/bookmarks/BookmarkPanel")
-);
-
-export default function RecordingDetailScreen() {
-  const theme = useTheme();
-  const player = useRecordingPlayer();
-  const {recordingId} = useParams<{recordingId: string}>();
+export default memo(function RecordingDetailScreen() {
+  const {recordingId} = useParams();
+  const player = useRecordingPlayer({
+    recordingId: recordingId ?? null
+  });
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
 
   // Capture real-time waveform data during playback
-  const waveformSamples = usePlaybackWaveform(
-    player.analyserNode,
-    player.playing !== null
-  );
+  // const waveformSamples = usePlaybackWaveform(
+  //   player.analyserNode,
+  //   player.playing !== null
+  // );
+  const waveformSamples = useRef(new Array<number>()).current;
 
   // Fetch recording and bookmarks using React Query
   const {
@@ -54,7 +56,7 @@ export default function RecordingDetailScreen() {
 
   const recordingBookmarks = useMemo(() => {
     if (!recordingNotes) return [];
-    return recordingNotes.map((n: any) => ({
+    return recordingNotes.map(n => ({
       id: n.id,
       durationOffset: n.durationOffset,
       title: n.title,
@@ -65,7 +67,7 @@ export default function RecordingDetailScreen() {
   const handleBookmarkSeek = useCallback(
     (bookmark: {id: string; durationOffset: number}) => {
       if (recording !== null && recording !== undefined) {
-        player.seek(recording, bookmark.durationOffset);
+        player.seek(bookmark.durationOffset);
       }
     },
     [player, recording]
@@ -86,12 +88,6 @@ export default function RecordingDetailScreen() {
     },
     [deleteMutation]
   );
-
-  const play = useCallback(() => {
-    if (recording !== null && recording !== undefined) {
-      player.play(recording);
-    }
-  }, [recording, player]);
 
   const humanReadableRecordingSize = useMemo(
     () => filesize(recording?.size ?? 0).toString(),
@@ -173,7 +169,7 @@ export default function RecordingDetailScreen() {
           <div className="flex items-center p-6 gap-6">
             {/* Play/Pause Button */}
             <button
-              onClick={player.playing !== null ? player.pause : play}
+              onClick={player.playing !== null ? player.pause : player.play}
               className="shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
               aria-label={player.playing !== null ? "Pause" : "Play"}
             >
@@ -194,7 +190,7 @@ export default function RecordingDetailScreen() {
                     </div>
                   }
                 >
-                  <TimelineVisualizer
+                  {/* <TimelineVisualizer
                     canvasHeight={320}
                     canvasWidth={canvasContainerDimensions.width}
                     samplesPerSecond={20}
@@ -209,7 +205,7 @@ export default function RecordingDetailScreen() {
                     backgroundColor={theme.colors.background}
                     barColor={theme.colors.barColor}
                     bookmarkColor={theme.colors.bookmarkColor}
-                  />
+                  /> */}
                 </Suspense>
               ) : null}
               {player.playing !== null && player.playing.cursor !== null && (
@@ -285,7 +281,7 @@ export default function RecordingDetailScreen() {
             </div>
           }
         >
-          <BookmarkPanel
+          {/* <BookmarkPanel
             bookmarks={recordingBookmarks}
             onSeek={handleBookmarkSeek}
             onUpdate={handleBookmarkUpdate}
@@ -304,9 +300,9 @@ export default function RecordingDetailScreen() {
                   : []
               )
             }
-          />
+          /> */}
         </Suspense>
       </div>
     </div>
   );
-}
+});

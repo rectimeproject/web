@@ -35,20 +35,22 @@ export default function useRecordings() {
             setToEncoder(OPUS_SET_BITRATE(recording.encoderId, newBitrate))
           )
           .then(result => {
-            if ("failures" in result) {
-              console.error(
-                "failed to set bitrate with failures: %s",
-                result.failures.join(", ")
-              );
-              setRecording(recording =>
-                recording
-                  ? {
-                      ...recording,
-                      bitrate: oldBitrate
-                    }
-                  : recording
-              );
+            if (!("failures" in result)) {
+              console.log("Bitrate set to %d", newBitrate);
+              return;
             }
+            console.error(
+              "Failed to set bitrate with failures: %s",
+              result.failures.join(", ")
+            );
+            setRecording(recording =>
+              recording
+                ? {
+                    ...recording,
+                    bitrate: oldBitrate
+                  }
+                : recording
+            );
           })
           .finally(() => {
             setIsSettingBitrate(false);
@@ -63,6 +65,7 @@ export default function useRecordings() {
     ]
   );
   const [settingMicrophone, setSettingMicrophone] = useState(false);
+  // TODO: Transform into a mutation
   const setMicrophone = useCallback(
     (device: MediaDeviceInfo) => {
       if (settingMicrophone) {

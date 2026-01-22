@@ -1,12 +1,12 @@
 import {useEffect, useState} from "react";
-import {AnalyserNode} from "standardized-audio-context";
+import {AnalyserNode, AudioContext} from "standardized-audio-context";
 
 /**
  * Captures real-time waveform data from an AnalyserNode during playback
  * Similar to the waveform capture during recording, but for playback visualization
  */
 export default function usePlaybackWaveform(
-  analyserNode: AnalyserNode<any> | null,
+  analyserNode: AnalyserNode<AudioContext> | null,
   isPlaying: boolean
 ) {
   const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
@@ -79,9 +79,6 @@ export default function usePlaybackWaveform(
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      console.log(
-        `[usePlaybackWaveform] Stopped waveform capture, total samples: ${sampleCount}`
-      );
     };
   }, [analyserNode, isPlaying]);
 

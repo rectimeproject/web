@@ -7,6 +7,7 @@ import {CodecId} from "opus-codec-worker/actions/actions";
 export default class RecorderWithDatabase extends Recorder {
   static databaseName = "appRecordings";
   readonly #database;
+  #globalPartIndex = 0;
   public constructor(a: IAudioContext, b: Opus) {
     super(a, b);
     this.#database = new RecorderDatabase(RecorderWithDatabase.databaseName);
@@ -30,13 +31,15 @@ export default class RecorderWithDatabase extends Recorder {
     buffer: ArrayBuffer;
   }) {
     if (
-      !(await this.#database.addBlobPart({
+      !(await this.#database.addRecordingPart({
         encoderId,
+        partIndex: this.#globalPartIndex++,
         sampleCount,
-        blobPart: buffer
+        format: "opus",
+        encoded: new Blob([buffer], {type: "application/octet-stream"})
       }))
     ) {
-      console.error("failed to add blob part");
+      console.error("Failed to add recording part");
     }
   }
   @boundMethod private async onStartRecording(data: {

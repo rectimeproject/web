@@ -6,10 +6,7 @@ export const useRecordingNotesQuery = (recordingId: string | null) => {
   const recordingNotes = useRecordingNotes();
 
   return useQuery({
-    queryKey:
-      recordingId !== null
-        ? queryKeys.recordingNotes.byRecording(recordingId)
-        : ["recordingNotes", "null"],
+    queryKey: queryKeys.recordingNotes.byRecording(recordingId),
     queryFn: async () => {
       if (recordingId === null) {
         throw new Error("Recording ID is required");

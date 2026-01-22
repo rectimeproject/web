@@ -71,20 +71,11 @@ export default function RecordingListScreen() {
 
   // Capture waveform data during recording
   useEffect(() => {
-    console.log("[RecordScreen] Waveform capture effect triggered", {
-      isRecording: recordings.isRecording,
-      hasAnalyserNode: !!analyserNode
-    });
-
     if (!recordings.isRecording || !analyserNode) {
-      console.log(
-        "[RecordScreen] Clearing waveform samples - not recording or no analyser"
-      );
       setWaveformSamples([]);
       return;
     }
 
-    console.log("[RecordScreen] Starting waveform capture");
     analyserNode.fftSize = 2 ** 11; // Higher resolution for better waveform
     analyserNode.smoothingTimeConstant = 0.3; // Smooth out the waveform
 
@@ -92,7 +83,6 @@ export default function RecordingListScreen() {
     const samplesPerSecond = 20; // Sample 20 times per second
     const intervalMs = 1000 / samplesPerSecond;
 
-    let sampleCount = 0;
     const captureInterval = setInterval(() => {
       // Use time domain data for actual waveform amplitude
       analyserNode.getByteTimeDomainData(dataArray);
@@ -109,23 +99,10 @@ export default function RecordingListScreen() {
       const rms = Math.sqrt(sumSquares / dataArray.length);
       const amplitude = rms * 255; // Scale back to 0-255 range
 
-      sampleCount++;
-      if (sampleCount % 20 === 0) {
-        // Log every second
-        console.log(
-          `[RecordScreen] Captured ${sampleCount} samples, latest amplitude: ${amplitude.toFixed(
-            2
-          )}`
-        );
-      }
-
       setWaveformSamples(prev => [...prev, amplitude]);
     }, intervalMs);
 
     return () => {
-      console.log(
-        `[RecordScreen] Stopping waveform capture, total samples: ${sampleCount}`
-      );
       clearInterval(captureInterval);
     };
   }, [recordings.isRecording, analyserNode]);

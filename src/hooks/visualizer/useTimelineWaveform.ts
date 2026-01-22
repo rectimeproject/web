@@ -28,11 +28,6 @@ export function useTimelineWaveform({
   timeWindowSeconds
 }: UseTimelineWaveformOptions): void {
   useEffect(() => {
-    console.log("[useTimelineWaveform] Rendering", {
-      barsLength: barsRef.current.length,
-      samplesLength: waveformSamples.length
-    });
-
     if (!barsRef.current.length) {
       console.log("[useTimelineWaveform] No bars created yet");
       return;
@@ -76,14 +71,6 @@ export function useTimelineWaveform({
       visibleSamples.length,
       barsRef.current.length
     );
-
-    console.log("[useTimelineWaveform] Rendering waveform", {
-      visibleSamplesLength: visibleSamples.length,
-      barsLength: barsRef.current.length,
-      samplesToRender,
-      barWidth,
-      canvasWidth: dimensions.width
-    });
 
     for (let i = 0; i < samplesToRender; i++) {
       const amplitude = visibleSamples[i] ?? null;

@@ -6,13 +6,10 @@ export const useRecordingQuery = (recordingId: string | null) => {
   const db = useRecorderDatabaseContext();
 
   return useQuery({
-    queryKey:
-      recordingId !== null
-        ? queryKeys.recordings.detail(recordingId)
-        : ["recordings", "detail", "null"],
+    queryKey: queryKeys.recordings.detail(recordingId),
     queryFn: async () => {
       if (recordingId === null) {
-        throw new Error("Recording ID is required");
+        return null;
       }
       const recording = await db.get(recordingId);
       if (!recording) throw new Error("Recording not found");
