@@ -1,7 +1,7 @@
 import {useMutation, useQueryClient} from "@tanstack/react-query";
-import {queryKeys} from "../../lib/queryKeys";
-import useRecordingNotes from "../../useRecordingNotes";
-import {IRecordingNote} from "../../RecorderDatabase";
+import {queryKeys} from "../../lib/queryKeys.js";
+import useRecordingNotes from "../../useRecordingNotes.js";
+import {IRecordingNote} from "../../RecorderDatabase.js";
 
 export const useCreateRecordingNoteMutation = () => {
   const recordingNotes = useRecordingNotes();
@@ -107,7 +107,9 @@ export const useUpdateRecordingNoteMutation = () => {
     onError: (
       _err: unknown,
       note: IRecordingNote,
-      context: {previous: IRecordingNote[] | undefined; recordingId: string} | undefined
+      context:
+        | {previous: IRecordingNote[] | undefined; recordingId: string}
+        | undefined
     ) => {
       // Rollback on error
       if (context?.previous) {

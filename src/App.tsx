@@ -6,8 +6,8 @@ import {
   useState
 } from "react";
 import "./App.css";
-import NavigationBar from "./NavigationBar";
-import useTheme from "./useTheme";
+import NavigationBar from "./NavigationBar.js";
+import useTheme from "./useTheme.js";
 
 export interface IDeviceDimensions {
   width: number;

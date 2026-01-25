@@ -3,27 +3,30 @@ import "./index.scss";
 import "./styles/global.css";
 import "@material-design-icons/font/index.css";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import reportWebVitals from "./reportWebVitals";
+import App from "./App.js";
+import reportWebVitals from "./reportWebVitals.js";
 import {StrictMode, Suspense, lazy} from "react";
-import {RecorderContext, IRecorderContextValue} from "./RecorderContext";
-import {Opus} from "./Recorder";
+import {RecorderContext, IRecorderContextValue} from "./RecorderContext.js";
+import {Opus} from "./Recorder.js";
 import {AudioContext} from "standardized-audio-context";
-import RecorderWithDatabase from "./RecorderWithDatabase";
-import RecorderDatabase from "./RecorderDatabase";
-import RecorderDatabaseContext from "./RecorderDatabaseContext";
+import RecorderWithDatabase from "./RecorderWithDatabase.js";
+import RecorderDatabase from "./RecorderDatabase.js";
+import RecorderDatabaseContext from "./RecorderDatabaseContext.js";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {SpeedInsights} from "@vercel/speed-insights/react";
-import ActivityIndicator from "./ActivityIndicator";
+import ActivityIndicator from "./ActivityIndicator.js";
+import workletHref from "opus-codec-worker/worklet/worklet?url";
 
 const ReactQueryDevtools = lazy(async () => ({
   default: (await import("@tanstack/react-query-devtools")).ReactQueryDevtools
 }));
 // Lazy load route components
-const RecordingDetailScreen = lazy(() => import("./RecordingDetailScreen"));
-const RecordScreen = lazy(() => import("./RecordScreen"));
-const RecordingListScreen = lazy(() => import("./RecordingListScreen"));
+const RecordingDetailScreen = lazy(
+  async () => import("./RecordingDetailScreen.js")
+);
+const RecordScreen = lazy(() => import("./RecordScreen.js"));
+const RecordingListScreen = lazy(() => import("./RecordingListScreen.js"));
 async function render() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -50,11 +53,13 @@ async function render() {
   const audioContext = new AudioContext({
     sampleRate: 48000
   });
-  const pendingWorklet = audioContext.audioWorklet?.addModule("/worklet.js");
+  const pendingWorklet = audioContext.audioWorklet?.addModule(workletHref);
   const recorderContext: IRecorderContextValue = {
     opus,
     recorder: pendingWorklet
-      ? pendingWorklet.then(() => new RecorderWithDatabase(audioContext, opus))
+      ? Promise.all([pendingWorklet, opus.initialize()]).then(
+          () => new RecorderWithDatabase(audioContext, opus)
+        )
       : Promise.resolve(null),
     audioContext,
     worklet: Promise.resolve<void>(pendingWorklet)

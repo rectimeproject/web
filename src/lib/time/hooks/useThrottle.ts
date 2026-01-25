@@ -1,5 +1,5 @@
 import {useRef, useCallback, useEffect} from "react";
-import {useTimeout} from "./useTimeout";
+import {useTimeout} from "./useTimeout.js";
 
 export const useThrottle = <T extends (...args: any[]) => any>(
   callback: T,

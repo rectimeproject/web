@@ -1,6 +1,6 @@
 import {useCallback, useMemo, useRef, useState} from "react";
-import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
-import {IRecordingNote} from "./RecorderDatabase";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext.js";
+import {IRecordingNote} from "./RecorderDatabase.js";
 
 export default function useRecordingNotes() {
   const noteIdRef = useRef(new Uint32Array(4));

@@ -1,8 +1,8 @@
 import {useCallback, useMemo, useState} from "react";
-import useRecorderContext from "./useRecorderContext";
-import {setToEncoder} from "opus-codec-worker/actions/actions";
-import {OPUS_SET_BITRATE} from "opus-codec-worker/actions/opus";
-import useDebounce from "./useDebounce";
+import useRecorderContext from "./useRecorderContext.js";
+import {setToEncoder} from "opus-codec-worker/actions/actions.js";
+import {OPUS_SET_BITRATE} from "opus-codec-worker/actions/opus.js";
+import useDebounce from "./useDebounce.js";
 
 export default function useRecordings() {
   const recorderContext = useRecorderContext();

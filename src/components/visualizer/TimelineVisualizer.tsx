@@ -1,7 +1,7 @@
-import PixiVisualizerBase from "./PixiVisualizerBase";
-import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars";
-import {useTimelineWaveform} from "../../hooks/visualizer/useTimelineWaveform";
-import BookmarkMarkers from "./BookmarkMarkers";
+import PixiVisualizerBase from "./PixiVisualizerBase.js";
+import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars.js";
+import {useTimelineWaveform} from "../../hooks/visualizer/useTimelineWaveform.js";
+import BookmarkMarkers from "./BookmarkMarkers.js";
 
 interface IBookmark {
   id: string;

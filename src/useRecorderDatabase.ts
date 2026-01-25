@@ -1,7 +1,7 @@
 import {useCallback, useMemo, useState} from "react";
-import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
-import {IPaginationFilter, RecordingV1} from "./RecorderDatabase";
-import useThrottle from "./useThrottle";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext.js";
+import {IPaginationFilter, RecordingV1} from "./RecorderDatabase.js";
+import useThrottle from "./useThrottle.js";
 
 export default function useRecorderDatabase() {
   const database = useRecorderDatabaseContext();

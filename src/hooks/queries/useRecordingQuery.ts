@@ -1,6 +1,6 @@
 import {useQuery} from "@tanstack/react-query";
-import {queryKeys} from "../../lib/queryKeys";
-import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext";
+import {queryKeys} from "../../lib/queryKeys.js";
+import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext.js";
 
 export const useRecordingQuery = (recordingId: string | null) => {
   const db = useRecorderDatabaseContext();

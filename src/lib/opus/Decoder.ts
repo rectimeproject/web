@@ -3,8 +3,8 @@ import {
   decodeFloat,
   destroyDecoder,
   ICreateDecoderOptions
-} from "opus-codec-worker/actions/actions";
-import Client from "opus-codec-worker/actions/Client";
+} from "opus-codec-worker/actions/actions.js";
+import Client from "opus-codec-worker/actions/Client.js";
 
 export default class Decoder {
   readonly #opusClient: Client;

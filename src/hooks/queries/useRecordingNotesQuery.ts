@@ -1,6 +1,6 @@
 import {useQuery} from "@tanstack/react-query";
-import {queryKeys} from "../../lib/queryKeys";
-import useRecordingNotes from "../../useRecordingNotes";
+import {queryKeys} from "../../lib/queryKeys.js";
+import useRecordingNotes from "../../useRecordingNotes.js";
 
 export const useRecordingNotesQuery = (recordingId: string | null) => {
   const recordingNotes = useRecordingNotes();

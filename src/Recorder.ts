@@ -1,4 +1,3 @@
-import Client from "opus-codec-worker/actions/Client";
 import {
   CodecId,
   // IEncodeFloatResult,
@@ -8,7 +7,7 @@ import {
   getFromEncoder,
   initializeWorker,
   setToEncoder
-} from "opus-codec-worker/actions/actions";
+} from "opus-codec-worker/actions/actions.js";
 import {
   AnalyserNode,
   AudioWorkletNode,
@@ -20,9 +19,11 @@ import {EventEmitter} from "eventual-js";
 import {
   OPUS_GET_BITRATE,
   OPUS_SET_BITRATE
-} from "opus-codec-worker/actions/opus";
-import * as opus from "opus-codec/opus";
+} from "opus-codec-worker/actions/opus.js";
+import * as opus from "opus-codec/opus/index.js";
 import OpusCodecWorker from "opus-codec-worker/worker?worker";
+import wasmFileHref from "opus-codec/native/index.wasm?url";
+import Client from "opus-codec-worker/actions/Client.js";
 
 export enum RecorderStateType {
   Idle,
@@ -34,18 +35,23 @@ export enum RecorderStateType {
 export class Opus {
   readonly worker;
   readonly client;
+  initialization: Promise<void> | null = null;
   public constructor() {
     this.worker = new OpusCodecWorker();
     this.client = new Client(this.worker);
-    this.client
+    this.initialization = null;
+  }
+  public async initialize() {
+    if (this.initialization !== null) {
+      return this.initialization;
+    }
+    this.initialization = this.client
       .sendMessage(
         initializeWorker({
-          wasmFileHref: "/opus/index.wasm"
+          wasmFileHref
         })
       )
-      .then(result => {
-        console.log(result);
-      });
+      .then(() => {});
   }
 }
 

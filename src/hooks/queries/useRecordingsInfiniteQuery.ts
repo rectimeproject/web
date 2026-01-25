@@ -1,6 +1,6 @@
 import {useInfiniteQuery} from "@tanstack/react-query";
-import {queryKeys} from "../../lib/queryKeys";
-import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext";
+import {queryKeys} from "../../lib/queryKeys.js";
+import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext.js";
 
 export const useRecordingsInfiniteQuery = (limit = 10) => {
   const db = useRecorderDatabaseContext();

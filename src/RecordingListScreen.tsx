@@ -1,13 +1,13 @@
 import {ChangeEvent, useCallback, useEffect, useMemo, useState} from "react";
 import {DateTime} from "luxon";
-import Icon from "./Icon";
-import secondsToHumanReadable from "./secondsToHumanReadable";
 import {useNavigate} from "react-router";
-import ActivityIndicator from "./ActivityIndicator";
 import {Link} from "react-router-dom";
-import {useRecordingsInfiniteQuery} from "./hooks/queries/useRecordingsInfiniteQuery";
-import {useUpdateRecordingMutation} from "./hooks/queries/useRecordingMutations";
-import Button from "./components/ui/Button";
+import secondsToHumanReadable from "./secondsToHumanReadable.js";
+import Icon from "./Icon.js";
+import ActivityIndicator from "./ActivityIndicator.js";
+import {useRecordingsInfiniteQuery} from "./hooks/queries/useRecordingsInfiniteQuery.js";
+import {useUpdateRecordingMutation} from "./hooks/queries/useRecordingMutations.js";
+import Button from "./components/ui/Button.js";
 
 export default function RecordingListScreen() {
   const navigate = useNavigate();
@@ -113,7 +113,9 @@ export default function RecordingListScreen() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center my-8">
           <ActivityIndicator />
-          <div className="mt-2 text-gray-600 dark:text-gray-400">Loading recordings...</div>
+          <div className="mt-2 text-gray-600 dark:text-gray-400">
+            Loading recordings...
+          </div>
         </div>
       </div>
     );
@@ -127,9 +129,7 @@ export default function RecordingListScreen() {
           <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
             Failed to load recordings: {error?.message ?? "Unknown error"}
           </div>
-          <Button onClick={() => refetch()}>
-            Retry
-          </Button>
+          <Button onClick={() => refetch()}>Retry</Button>
         </div>
       </div>
     );
@@ -139,7 +139,14 @@ export default function RecordingListScreen() {
     <div className="max-w-5xl mx-auto px-6 py-12">
       {!recordingsWithHandlers.length ? (
         <div className="text-center text-gray-600 dark:text-gray-400">
-          No recordings yet. <Link to="/" className="text-blue-500 dark:text-blue-400 hover:underline">Record</Link> something!
+          No recordings yet.{" "}
+          <Link
+            to="/"
+            className="text-blue-500 dark:text-blue-400 hover:underline"
+          >
+            Record
+          </Link>{" "}
+          something!
         </div>
       ) : (
         <>
@@ -183,16 +190,23 @@ export default function RecordingListScreen() {
           {isFetchingNextPage ? (
             <div className="text-center my-8">
               <ActivityIndicator />
-              <div className="mt-2 text-gray-600 dark:text-gray-400">Loading more...</div>
+              <div className="mt-2 text-gray-600 dark:text-gray-400">
+                Loading more...
+              </div>
             </div>
           ) : hasNextPage ? (
             <div className="text-center my-8">
-              <Button variant="secondary" onClick={() => fetchNextPage()}>
+              <Button
+                variant="secondary"
+                onClick={() => fetchNextPage()}
+              >
                 Load More
               </Button>
             </div>
           ) : (
-            <div className="text-center my-8 text-gray-600 dark:text-gray-400">No more results.</div>
+            <div className="text-center my-8 text-gray-600 dark:text-gray-400">
+              No more results.
+            </div>
           )}
         </>
       )}

@@ -1,5 +1,5 @@
 import {Link, useLocation} from "react-router-dom";
-import Icon from "./Icon";
+import Icon from "./Icon.js";
 
 export default function NavigationBar() {
   const location = useLocation();

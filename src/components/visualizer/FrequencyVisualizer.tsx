@@ -1,8 +1,8 @@
 import {useEffect, useRef} from "react";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
-import PixiVisualizerBase from "./PixiVisualizerBase";
-import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars";
-import useTheme from "../../useTheme";
+import PixiVisualizerBase from "./PixiVisualizerBase.js";
+import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars.js";
+import useTheme from "../../useTheme.js";
 import * as PIXI from "pixi.js";
 
 interface FrequencyVisualizerProps {

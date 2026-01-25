@@ -1,30 +1,39 @@
-import Client from "opus-codec-worker/actions/Client";
-import {AudioContext} from "standardized-audio-context";
+import {
+  AudioContext,
+  IAudioBufferSourceNode,
+  IAudioContext
+} from "standardized-audio-context";
 import RecorderDatabase, {
   IRecordingPartV1,
   RecordingV1
-} from "../../RecorderDatabase";
-import Decoder from "../opus/Decoder";
+} from "../../RecorderDatabase.js";
+import Decoder from "../opus/Decoder.js";
+import {EventEmitter} from "eventual-js";
+import type Client from "opus-codec-worker/actions/Client.js";
 
 interface IAudioPlayerContext {
   recording: RecordingV1;
   decoder: Decoder;
   playedDuration: number;
   scheduledDuration: number;
+  abortController: AbortController;
   startTime: number;
   currentTime: number | null;
-  lastTime: number | null;
-  pending: PromiseWithResolvers<void>;
-  scheduling: Promise<void>;
-  onEnded?: (scheduledRatio: number) => Promise<void>;
+  aborted: Promise<void>;
+  onFinishPart: () => Promise<void>;
 }
 
-export class RecordingPlayer {
+export class RecordingPlayer extends EventEmitter<{
+  state: "playing" | "paused" | "preparing";
+  duration: {recordingId: string; duration: number};
+}> {
+  public readonly recordingId;
   readonly #audioContext;
   readonly #analyserNode;
   readonly #opusClient;
   readonly #recorderDatabase;
-  readonly #recordingId;
+  #audioPlayerContext: IAudioPlayerContext | null = null;
+  #state: "preparing" | "playing" | "paused" = "paused";
   public constructor({
     opusClient,
     audioContext,
@@ -36,18 +45,63 @@ export class RecordingPlayer {
     opusClient: Client;
     db: RecorderDatabase;
   }) {
+    super();
     this.#recorderDatabase = db;
     this.#opusClient = opusClient;
-    this.#recordingId = recordingId;
+    this.recordingId = recordingId;
     this.#audioContext = audioContext;
     this.#analyserNode = this.#audioContext.createAnalyser();
+    // this.#analyserNode.fftSize = 2048;
+    this.#audioPlayerContext = null;
   }
-  public async play() {
+  #pending = Promise.resolve();
+  #playDebounceTimerId: number | null = null;
+  public play(from: number) {
+    if (this.#playDebounceTimerId !== null) {
+      clearTimeout(this.#playDebounceTimerId);
+      this.#playDebounceTimerId = null;
+    }
+    this.#playDebounceTimerId = window.setTimeout(() => {
+      this.#pending = this.#pending
+        .then(async () => {
+          try {
+            await this.#play(from);
+          } finally {
+            this.#setState("paused");
+          }
+        })
+        .catch(err => {
+          console.error("Error in playback:", err);
+        });
+    }, 100);
+  }
+  public destroy() {
+    this.#destroyAudioPlayerContext();
+    this.emit("state", "paused");
+  }
+  public setCurrentTime(currentTime: number) {
+    this.destroy();
+    this.play(currentTime);
+  }
+  #setState(state: "preparing" | "playing" | "paused") {
+    if (this.#state !== state) {
+      this.#state = state;
+      this.emit("state", state);
+    }
+  }
+  async #play(startDuration: number) {
+    if (this.#state !== "paused") {
+      return;
+    }
+
+    this.#setState("preparing");
+
+    // Resume audio context if suspended
     await this.#audioContext.resume();
 
     await using decoder = new Decoder(this.#opusClient);
 
-    const recording = await this.#recorderDatabase.get(this.#recordingId);
+    const recording = await this.#recorderDatabase.get(this.recordingId);
 
     if (recording === null) {
       throw new Error("Recording not found");
@@ -59,49 +113,76 @@ export class RecordingPlayer {
       frameSize: recording.frameSize
     });
 
-    const pending = Promise.withResolvers<void>();
+    const abortController = new AbortController();
+    const {signal} = abortController;
+
     const audioPlayerContext: IAudioPlayerContext = {
       recording,
+      abortController,
       decoder,
-      pending,
       playedDuration: 0,
       scheduledDuration: 0,
-      currentTime: null,
-      lastTime: null,
-      scheduling: Promise.resolve(),
       startTime: this.#audioContext.currentTime,
-      onEnded: async (scheduledRatio: number) => {
-        const hasFinishedScheduling =
-          audioPlayerContext.scheduledDuration >= recording.duration / 1000;
-        if (hasFinishedScheduling) {
-          pending.resolve();
-          return;
-        }
-        if (scheduledRatio < 0.5) {
-          return;
-        }
-        console.log("Halfway through playback");
-        await this.#playInterval(
-          audioPlayerContext.scheduledDuration,
-          audioPlayerContext.scheduledDuration + 2,
-          audioPlayerContext
+      currentTime: null,
+      aborted: new Promise<void>(resolve => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          {once: true}
         );
+      }),
+      onFinishPart: async () => {
+        const scheduledPlayedRatio =
+          audioPlayerContext.playedDuration /
+          audioPlayerContext.scheduledDuration;
+        this.#updateDuration(audioPlayerContext);
+        if (scheduledPlayedRatio < 0.8) {
+          return;
+        }
+        const from = startDuration + audioPlayerContext.scheduledDuration;
+        console.log("Starting new interval from %o seconds", from);
+        await this.#playInterval(from, from + 2, audioPlayerContext);
       }
     };
-    await this.#playInterval(0, 2, audioPlayerContext);
+
+    signal.addEventListener("abort", err => {
+      console.log("Playback aborted: %o", err);
+    });
+
+    this.#audioPlayerContext = audioPlayerContext;
+
+    try {
+      this.#analyserNode.connect(this.#audioContext.destination);
+      await this.#playInterval(
+        startDuration,
+        startDuration + 2,
+        audioPlayerContext
+      );
+    } catch (err) {
+      console.error("Error during playback:", err);
+    } finally {
+      this.#audioPlayerContext = null;
+      this.#analyserNode.disconnect(this.#audioContext.destination);
+    }
+  }
+  #updateDuration(audioPlayerContext: IAudioPlayerContext) {
+    this.emit("duration", {
+      recordingId: this.recordingId,
+      duration: audioPlayerContext.playedDuration
+    });
   }
   async #playInterval(
     from: number,
     to: number,
     audioPlayerContext: IAudioPlayerContext
   ) {
-    let processedDuration = 0;
-
     const cursor = await this.#recorderDatabase
       .transaction("recordingParts", "readonly")
       .objectStore("recordingParts")
       .index("recordingId")
-      .openCursorIter(IDBKeyRange.only(this.#recordingId));
+      .openCursorIter(IDBKeyRange.only(this.recordingId));
 
     if (cursor === null) {
       throw new Error("No recording parts found");
@@ -109,24 +190,106 @@ export class RecordingPlayer {
 
     console.log("Starting to process recording parts from %o to %o", from, to);
 
+    const plannedParts = new Array<{
+      part: IRecordingPartV1;
+      /**
+       * Position of the part in seconds relative to the start of the recording
+       */
+      delta: number;
+    }>();
+    let processedDuration = 0;
+
+    const {signal} = audioPlayerContext.abortController;
+
     for await (const part of cursor) {
+      signal.throwIfAborted();
+
       if (processedDuration >= to) {
         break;
       }
-      if (processedDuration >= from) {
-        audioPlayerContext.scheduling = audioPlayerContext.scheduling.then(() =>
-          this.#schedulePart(part, audioPlayerContext)
-        );
-      }
-      processedDuration +=
+      const partDuration =
         part.sampleCount /
         audioPlayerContext.recording.channels /
         audioPlayerContext.recording.sampleRate;
+      if (processedDuration >= from) {
+        plannedParts.push({
+          part,
+          delta: processedDuration
+        });
+      }
+      processedDuration += partDuration;
+    }
+
+    const connectedParts = new Array<{
+      audioBufferSourceNode: IAudioBufferSourceNode<IAudioContext>;
+      delta: number;
+      duration: number;
+    }>();
+
+    for (const {part, delta} of plannedParts) {
+      signal.throwIfAborted();
+
+      connectedParts.push({
+        duration:
+          part.sampleCount /
+          audioPlayerContext.recording.channels /
+          audioPlayerContext.recording.sampleRate,
+        audioBufferSourceNode: await this.#prepareAudioBufferSourceNode(
+          part,
+          audioPlayerContext
+        ),
+        delta
+      });
+    }
+
+    this.emit("state", "playing");
+
+    let pending = Promise.resolve();
+
+    for (const part of connectedParts) {
+      signal.throwIfAborted();
+
+      const {audioBufferSourceNode, duration} = part;
+
+      const onPartEnded = Promise.race([
+        new Promise<void>((resolve, reject) => {
+          audioBufferSourceNode.addEventListener(
+            "ended",
+            () => {
+              if (signal.aborted) {
+                reject(signal.reason);
+                return;
+              }
+              resolve();
+            },
+            {passive: true, once: true}
+          );
+        }),
+        audioPlayerContext.aborted
+      ]);
+
+      const nodeStartTime = audioPlayerContext.startTime + part.delta;
+
+      audioBufferSourceNode.start(nodeStartTime);
+      audioPlayerContext.scheduledDuration += duration;
+
+      pending = pending
+        .then(async () => {
+          this.#updateDuration(audioPlayerContext);
+          await onPartEnded;
+          audioPlayerContext.playedDuration += duration;
+          await audioPlayerContext.onFinishPart();
+        })
+        .catch(err => {
+          console.log("Stopping: %o", nodeStartTime);
+          audioBufferSourceNode.stop(this.#audioContext.currentTime);
+          return Promise.reject(err);
+        });
     }
 
     console.log("Processed %o seconds of audio", processedDuration);
 
-    await audioPlayerContext.pending.promise;
+    await pending;
   }
   async #createSlice(
     part: IRecordingPartV1,
@@ -148,41 +311,24 @@ export class RecordingPlayer {
     const audioBufferSourceNode = this.#audioContext.createBufferSource();
     audioBufferSourceNode.buffer = audioBuffer;
 
-    return {audioBuffer, audioBufferSourceNode};
+    return audioBufferSourceNode;
   }
-  async #schedulePart(
+  async #prepareAudioBufferSourceNode(
     part: IRecordingPartV1,
     audioPlayerContext: IAudioPlayerContext
   ) {
-    const {audioBufferSourceNode: sourceNode, audioBuffer} =
-      await this.#createSlice(part, audioPlayerContext);
-    sourceNode.connect(this.#analyserNode);
-    this.#analyserNode.connect(this.#audioContext.destination);
-    sourceNode.onended = () => {
-      audioPlayerContext.lastTime = this.#audioContext.currentTime;
-      audioPlayerContext.playedDuration += audioBuffer.duration;
-
-      const played =
-        audioPlayerContext.playedDuration /
-        (audioPlayerContext.recording.duration / 1000);
-
-      const scheduled =
-        audioPlayerContext.scheduledDuration /
-        (audioPlayerContext.recording.duration / 1000);
-
-      const scheduledRatio = played / scheduled;
-
-      if (audioPlayerContext.onEnded) {
-        audioPlayerContext.onEnded(scheduledRatio);
-      }
-    };
-    const currentTime =
-      audioPlayerContext.currentTime ?? audioPlayerContext.startTime;
-    if (audioPlayerContext.currentTime === null) {
-      audioPlayerContext.currentTime = currentTime;
-    }
-    sourceNode.start(currentTime + audioPlayerContext.scheduledDuration);
-    audioPlayerContext.scheduledDuration += audioBuffer.duration;
+    const audioBufferSourceNode = await this.#createSlice(
+      part,
+      audioPlayerContext
+    );
+    audioBufferSourceNode.connect(this.#analyserNode);
+    return audioBufferSourceNode;
   }
-  public destroy() {}
+  #destroyAudioPlayerContext() {
+    if (this.#audioPlayerContext === null) {
+      return;
+    }
+    this.#audioPlayerContext.abortController.abort();
+    this.#audioPlayerContext = null;
+  }
 }

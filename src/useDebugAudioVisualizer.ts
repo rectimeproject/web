@@ -4,8 +4,8 @@ import {
   IAudioContext,
   MediaStreamAudioSourceNode
 } from "standardized-audio-context";
-import useRecorderContext from "./useRecorderContext";
-import domExceptionToString from "./domExceptionToString";
+import useRecorderContext from "./useRecorderContext.js";
+import domExceptionToString from "./domExceptionToString.js";
 
 interface IDebugAudioVisualizerData {
   streamAudioSourceNode: MediaStreamAudioSourceNode<IAudioContext>;

@@ -1,88 +1,76 @@
-import {useCallback, useMemo, useRef} from "react";
-import useRecorderContext from "./useRecorderContext";
-import {
-  AnalyserNode,
-  AudioBufferSourceNode,
-  IAudioBuffer,
-  IAudioContext
-} from "standardized-audio-context";
-import {useRecorderDatabaseContext} from "./RecorderDatabaseContext";
-import {RingBufferF32} from "ringbud";
-import {RecordingPlayer} from "./lib/audio-player/RecordingPlayer";
-
-interface IScheduleItem {
-  audioBuffer: IAudioBuffer;
-  sourceNode: AudioBufferSourceNode<IAudioContext>;
-  startTime: number;
-}
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import useRecorderContext from "./useRecorderContext.js";
+import {useRecorderDatabaseContext} from "./RecorderDatabaseContext.js";
+import {RecordingPlayer} from "./lib/audio-player/RecordingPlayer.js";
 
 export interface IImmutablePlayingState {
   recordingId: string;
   cursor: number | null;
 }
 
-interface IState {
-  destroying: Promise<void> | null;
-  recordingId: string;
-  ringBuffer: RingBufferF32;
-  decoderId: string | null;
-  /**
-   * if null, it means we're waiting for the first slice to be ready
-   */
-  playingState: {
-    initialCurrentTime: number;
-    lastTime: number;
-    scheduleOffset: number;
-  } | null;
-  /**
-   * this is filled while we're creating audio buffer sources and audio buffers. it is
-   * used to track what is the current duration offset we're currently at
-   */
-  durationOffset: number;
-  schedule: ReadonlyArray<IScheduleItem>;
-  requestedStop: boolean;
-  analyserNode: AnalyserNode<IAudioContext>;
-}
-
 export default function useRecordingPlayer({
-  recordingId
+  recordingId,
+  setCurrentTime
 }: {
   recordingId: string | null;
+  setCurrentTime?: (currentTime: number) => void;
 }) {
   const recorderContext = useRecorderContext();
   const recorderDatabase = useRecorderDatabaseContext();
-  const player = useRef<RecordingPlayer | null>(null);
+  const audioPlayerRef = useRef<RecordingPlayer | null>(null);
+  const [playing, setPlaying] = useState<boolean>(false);
 
-  const play = useCallback(() => {
-    if (recordingId === null) {
+  const pause = useCallback(() => {
+    if (audioPlayerRef.current === null) {
       return;
     }
-
-    if (player.current !== null) {
-      player.current.destroy();
-      player.current = null;
+    audioPlayerRef.current.destroy();
+    audioPlayerRef.current = null;
+  }, []);
+  const play = useCallback(
+    (currentTime: number) => {
+      if (audioPlayerRef.current === null && recordingId !== null) {
+        audioPlayerRef.current = new RecordingPlayer({
+          db: recorderDatabase,
+          opusClient: recorderContext.opus.client,
+          audioContext: recorderContext.audioContext,
+          recordingId
+        });
+        audioPlayerRef.current.on("state", state => {
+          setPlaying(state === "playing");
+        });
+        audioPlayerRef.current.on("duration", ({duration}) => {
+          setCurrentTime?.(duration);
+        });
+      }
+      audioPlayerRef.current?.play(currentTime);
+    },
+    [recordingId, recorderContext, recorderDatabase, setCurrentTime]
+  );
+  const seek = useCallback((newDuration: number) => {
+    if (audioPlayerRef.current === null) {
+      return;
     }
+    audioPlayerRef.current.setCurrentTime(newDuration);
+  }, []);
 
-    player.current = new RecordingPlayer({
-      db: recorderDatabase,
-      opusClient: recorderContext.opus.client,
-      audioContext: recorderContext.audioContext,
-      recordingId
-    });
-    player.current.play().catch(err => {
-      console.error("Error playing recording:", err);
-    });
-  }, [recordingId, recorderContext, recorderDatabase]);
-  const pause = useCallback(() => {}, []);
-  const seek = useCallback((_durationOffset: number) => {}, []);
+  useEffect(() => {
+    if (
+      recordingId === null ||
+      audioPlayerRef.current?.recordingId !== recordingId
+    ) {
+      pause();
+    }
+    return pause;
+  }, [recordingId, pause]);
 
   return useMemo(
     () => ({
       play,
-      playing: null,
+      playing,
       pause,
       seek
     }),
-    [play, pause, seek]
+    [play, playing, pause, seek]
   );
 }

@@ -1,5 +1,5 @@
 import {useCallback, useMemo, useRef, useState} from "react";
-import AppDatabase from "./AppDatabase";
+import AppDatabase from "./AppDatabase.js";
 
 export interface IPreferredDevice {
   deviceId: string;

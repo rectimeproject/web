@@ -3,41 +3,52 @@ import {
   useCallback,
   useMemo,
   useState,
-  lazy,
   Suspense,
-  useRef,
-  memo
+  // useRef,
+  // useEffect,
+  memo,
+  ChangeEventHandler
 } from "react";
-import useRecordingPlayer from "./useRecordingPlayer";
-import ActivityIndicator from "./ActivityIndicator";
+import useRecordingPlayer from "./useRecordingPlayer.js";
+import ActivityIndicator from "./ActivityIndicator.js";
 import {DateTime} from "luxon";
-import secondsToHumanReadable from "./secondsToHumanReadable";
-import Icon from "./Icon";
+import secondsToHumanReadable from "./secondsToHumanReadable.js";
+import Icon from "./Icon.js";
 import {filesize} from "filesize";
-import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
-import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
-import {
-  useUpdateRecordingNoteMutation,
-  useDeleteRecordingNoteMutation
-} from "./hooks/queries/useRecordingNotesMutations";
-import {ICreateDecoderOptions} from "opus-codec-worker/actions/actions";
-import OpusCodecOptions from "./OpusCodecOptions";
+import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
+
+// import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
+// import {
+//   useUpdateRecordingNoteMutation,
+//   useDeleteRecordingNoteMutation
+// } from "./hooks/queries/useRecordingNotesMutations";
 
 export default memo(function RecordingDetailScreen() {
   const {recordingId} = useParams();
+  const [currentTime, setCurrentTime] = useState<number>(0);
   const player = useRecordingPlayer({
-    recordingId: recordingId ?? null
+    recordingId: recordingId ?? null,
+    setCurrentTime
   });
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
+
+  const onChangeCurrentTime = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    e => {
+      const newTime = e.target.valueAsNumber;
+      setCurrentTime(newTime);
+      player.seek(newTime);
+    },
+    [player]
+  );
 
   // Capture real-time waveform data during playback
   // const waveformSamples = usePlaybackWaveform(
   //   player.analyserNode,
   //   player.playing !== null
   // );
-  const waveformSamples = useRef(new Array<number>()).current;
+  // const waveformSamples = useRef(new Array<number>()).current;
 
   // Fetch recording and bookmarks using React Query
   const {
@@ -48,46 +59,46 @@ export default memo(function RecordingDetailScreen() {
     refetch: refetchRecording
   } = useRecordingQuery(recordingIdOrNull);
 
-  const {data: recordingNotes, isLoading: isLoadingNotes} =
-    useRecordingNotesQuery(recordingIdOrNull);
+  // const {data: recordingNotes, isLoading: isLoadingNotes} =
+  //   useRecordingNotesQuery(recordingIdOrNull);
 
-  const updateMutation = useUpdateRecordingNoteMutation();
-  const deleteMutation = useDeleteRecordingNoteMutation();
+  // const updateMutation = useUpdateRecordingNoteMutation();
+  // const deleteMutation = useDeleteRecordingNoteMutation();
 
-  const recordingBookmarks = useMemo(() => {
-    if (!recordingNotes) return [];
-    return recordingNotes.map(n => ({
-      id: n.id,
-      durationOffset: n.durationOffset,
-      title: n.title,
-      contents: n.contents
-    }));
-  }, [recordingNotes]);
+  // const recordingBookmarks = useMemo(() => {
+  //   if (!recordingNotes) return [];
+  //   return recordingNotes.map(n => ({
+  //     id: n.id,
+  //     durationOffset: n.durationOffset,
+  //     title: n.title,
+  //     contents: n.contents
+  //   }));
+  // }, [recordingNotes]);
 
-  const handleBookmarkSeek = useCallback(
-    (bookmark: {id: string; durationOffset: number}) => {
-      if (recording !== null && recording !== undefined) {
-        player.seek(bookmark.durationOffset);
-      }
-    },
-    [player, recording]
-  );
+  // const handleBookmarkSeek = useCallback(
+  //   (bookmark: {id: string; durationOffset: number}) => {
+  //     if (recording !== null && recording !== undefined) {
+  //       player.seek(bookmark.durationOffset);
+  //     }
+  //   },
+  //   [player, recording]
+  // );
 
-  const handleBookmarkUpdate = useCallback(
-    (id: string, title: string) => {
-      const note = recordingNotes?.find(n => n.id === id);
-      if (!note) return;
-      updateMutation.mutate({...note, title});
-    },
-    [recordingNotes, updateMutation]
-  );
+  // const handleBookmarkUpdate = useCallback(
+  //   (id: string, title: string) => {
+  //     const note = recordingNotes?.find(n => n.id === id);
+  //     if (!note) return;
+  //     updateMutation.mutate({...note, title});
+  //   },
+  //   [recordingNotes, updateMutation]
+  // );
 
-  const handleBookmarkDelete = useCallback(
-    (id: string) => {
-      deleteMutation.mutate({noteId: id});
-    },
-    [deleteMutation]
-  );
+  // const handleBookmarkDelete = useCallback(
+  //   (id: string) => {
+  //     deleteMutation.mutate({noteId: id});
+  //   },
+  //   [deleteMutation]
+  // );
 
   const humanReadableRecordingSize = useMemo(
     () => filesize(recording?.size ?? 0).toString(),
@@ -113,8 +124,16 @@ export default memo(function RecordingDetailScreen() {
     [setCanvasContainerDimensions]
   );
 
+  const togglePlayer = useCallback(() => {
+    if (player.playing) {
+      player.pause();
+      return;
+    }
+    player.play(currentTime);
+  }, [player, currentTime]);
+
   // Loading state
-  if (isLoadingRecording || isLoadingNotes) {
+  if (isLoadingRecording) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center">
@@ -169,12 +188,27 @@ export default memo(function RecordingDetailScreen() {
           <div className="flex items-center p-6 gap-6">
             {/* Play/Pause Button */}
             <button
-              onClick={player.playing !== null ? player.pause : player.play}
+              onClick={togglePlayer}
               className="shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
-              aria-label={player.playing !== null ? "Pause" : "Play"}
+              aria-label={player.playing ? "Pause" : "Play"}
             >
-              <Icon name={player.playing !== null ? "pause" : "play_arrow"} />
+              <Icon name={player.playing ? "pause" : "play_arrow"} />
             </button>
+
+            {/* Player current time controller */}
+            <div className="flex flex-col flex-1">
+              <input
+                type="range"
+                min={0}
+                max={recording.duration / 1000}
+                value={currentTime}
+                onChange={onChangeCurrentTime}
+                className="w-full"
+              />
+              <div className="text-lg font-mono font-semibold mt-1">
+                {secondsToHumanReadable(currentTime)}
+              </div>
+            </div>
 
             {/* Visualizer */}
             <div
@@ -208,9 +242,9 @@ export default memo(function RecordingDetailScreen() {
                   /> */}
                 </Suspense>
               ) : null}
-              {player.playing !== null && player.playing.cursor !== null && (
+              {currentTime !== null && (
                 <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
-                  {secondsToHumanReadable(player.playing.cursor)}
+                  {secondsToHumanReadable(currentTime)}
                 </div>
               )}
             </div>

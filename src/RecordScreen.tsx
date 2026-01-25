@@ -9,31 +9,31 @@ import {
   lazy,
   Suspense
 } from "react";
-import useInterval from "./useInterval";
-import secondsToHumanReadable from "./secondsToHumanReadable";
-import useRecordings from "./useRecordings";
-import useRecorderContext from "./useRecorderContext";
-import useRecorderDatabase from "./useRecorderDatabase";
-import {CodecId} from "opus-codec-worker/actions/actions";
-import {RecorderStateType} from "./Recorder";
+import useInterval from "./useInterval.js";
+import secondsToHumanReadable from "./secondsToHumanReadable.js";
+import useRecordings from "./useRecordings.js";
+import useRecorderContext from "./useRecorderContext.js";
+import useRecorderDatabase from "./useRecorderDatabase.js";
+import {CodecId} from "opus-codec-worker/actions/actions.js";
+import {RecorderStateType} from "./Recorder.js";
 import {filesize} from "filesize";
-import Icon from "./Icon";
+import Icon from "./Icon.js";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
-import useNavigatorStorage from "./useNavigatorStorage";
-import ActivityIndicator from "./ActivityIndicator";
-import useMediaDevices from "./useMediaDevices";
-import useAppSettings from "./useAppSettings";
-import useDebounce from "./useDebounce";
-import useRecordingNotes from "./useRecordingNotes";
-import useDebugAudioVisualizer from "./useDebugAudioVisualizer";
-import useTheme from "./useTheme";
+import useNavigatorStorage from "./useNavigatorStorage.js";
+import ActivityIndicator from "./ActivityIndicator.js";
+import useMediaDevices from "./useMediaDevices.js";
+import useAppSettings from "./useAppSettings.js";
+import useDebounce from "./useDebounce.js";
+import useRecordingNotes from "./useRecordingNotes.js";
+import useDebugAudioVisualizer from "./useDebugAudioVisualizer.js";
+import useTheme from "./useTheme.js";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {randomUUID} from "./lib/randomUUID";
+import {randomUUID} from "./lib/randomUUID.js";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
-  () => import("./components/visualizer/TimelineVisualizer")
+  () => import("./components/visualizer/TimelineVisualizer.js")
 );
 
 export default function RecordingListScreen() {

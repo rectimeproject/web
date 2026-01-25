@@ -1,5 +1,5 @@
 import {useRef, useEffect, useCallback, useState} from "react";
-import {useTime} from "../TimeProvider";
+import {useTime} from "../TimeProvider.js";
 
 interface UseAnimationFrameOptions {
   autoStart?: boolean;

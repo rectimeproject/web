@@ -1,8 +1,8 @@
 import {IAudioContext} from "standardized-audio-context";
-import Recorder, {Opus} from "./Recorder";
-import RecorderDatabase from "./RecorderDatabase";
+import Recorder, {Opus} from "./Recorder.js";
+import RecorderDatabase from "./RecorderDatabase.js";
 import {boundMethod} from "autobind-decorator";
-import {CodecId} from "opus-codec-worker/actions/actions";
+import {CodecId} from "opus-codec-worker/actions/actions.js";
 
 export default class RecorderWithDatabase extends Recorder {
   static databaseName = "appRecordings";

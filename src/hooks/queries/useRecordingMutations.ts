@@ -1,7 +1,7 @@
 import {useMutation, useQueryClient} from "@tanstack/react-query";
-import {queryKeys} from "../../lib/queryKeys";
-import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext";
-import {RecordingV1} from "../../RecorderDatabase";
+import {queryKeys} from "../../lib/queryKeys.js";
+import {useRecorderDatabaseContext} from "../../RecorderDatabaseContext.js";
+import {RecordingV1} from "../../RecorderDatabase.js";
 
 export const useUpdateRecordingMutation = () => {
   const db = useRecorderDatabaseContext();

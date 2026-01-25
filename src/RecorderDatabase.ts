@@ -1,8 +1,8 @@
-import {CodecId} from "opus-codec-worker/actions/actions";
+import {CodecId} from "opus-codec-worker/actions/actions.js";
 import {Database} from "idb-javascript";
 import {boundMethod} from "autobind-decorator";
-import DatabaseThreadDummy from "idb-javascript/src/DatabaseThreadDummy";
-import {randomUUID} from "./lib/randomUUID";
+import DatabaseThreadDummy from "idb-javascript/src/DatabaseThreadDummy.js";
+import {randomUUID} from "./lib/randomUUID.js";
 
 export interface IRecordingDataOffset {
   /**

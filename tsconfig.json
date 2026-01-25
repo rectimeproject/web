@@ -9,7 +9,7 @@
     "composite": true,
     "target": "esnext",
     "experimentalDecorators": true,
-    "module": "ESNext",
+    "module": "esnext",
     "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,

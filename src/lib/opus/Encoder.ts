@@ -2,9 +2,9 @@ import {
   createEncoder,
   destroyEncoder,
   encodeFloat
-} from "opus-codec-worker/actions/actions";
-import Client from "opus-codec-worker/actions/Client";
-import * as opus from "opus-codec/opus";
+} from "opus-codec-worker/actions/actions.js";
+import Client from "opus-codec-worker/actions/Client.js";
+import * as opus from "opus-codec/opus/index.js";
 
 export enum OpusApplication {
   VOIP = opus.constants.OPUS_APPLICATION_VOIP,
