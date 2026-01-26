@@ -18,7 +18,7 @@ import {CodecId} from "opus-codec-worker/actions/actions.js";
 import {RecorderStateType} from "./Recorder.js";
 import {filesize} from "filesize";
 import Icon from "./Icon.js";
-import {AnalyserNode, IAudioContext} from "standardized-audio-context";
+import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -55,57 +55,16 @@ export default function RecordingListScreen() {
       db.getRecordingByEncoderId(recordings.recording.encoderId);
     }
   }, [db, recordings]);
-  const [analyserNode, setAnalyserNode] =
-    useState<AnalyserNode<IAudioContext> | null>(null);
+  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
     navigate("/recordings");
   }, [navigate]);
 
-  // Waveform data for timeline visualization
-  const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
   const recording =
     db.recordings.find(r => r.encoderId === recordings.recording?.encoderId) ??
     null;
-
-  // Capture waveform data during recording
-  useEffect(() => {
-    if (!recordings.isRecording || !analyserNode) {
-      setWaveformSamples([]);
-      return;
-    }
-
-    analyserNode.fftSize = 2 ** 11; // Higher resolution for better waveform
-    analyserNode.smoothingTimeConstant = 0.3; // Smooth out the waveform
-
-    const dataArray = new Uint8Array(analyserNode.fftSize);
-    const samplesPerSecond = 20; // Sample 20 times per second
-    const intervalMs = 1000 / samplesPerSecond;
-
-    const captureInterval = setInterval(() => {
-      // Use time domain data for actual waveform amplitude
-      analyserNode.getByteTimeDomainData(dataArray);
-
-      // Calculate RMS (Root Mean Square) for better amplitude representation
-      let sumSquares = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        const value = dataArray[i] ?? null;
-        if (value !== null) {
-          const normalized = (value - 128) / 128; // Center around 0
-          sumSquares += normalized * normalized;
-        }
-      }
-      const rms = Math.sqrt(sumSquares / dataArray.length);
-      const amplitude = rms * 255; // Scale back to 0-255 range
-
-      setWaveformSamples(prev => [...prev, amplitude]);
-    }, intervalMs);
-
-    return () => {
-      clearInterval(captureInterval);
-    };
-  }, [recordings.isRecording, analyserNode]);
   const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
     width: number;
     height: number;
@@ -268,11 +227,11 @@ export default function RecordingListScreen() {
       );
 
       if (state === null || !("analyserNode" in state) || !state.analyserNode) {
-        setAnalyserNode(null);
+        analyserNodeRef.current = null;
         return;
       }
       console.log("[RecordScreen] Setting analyserNode from recorder state");
-      setAnalyserNode(state.analyserNode);
+      analyserNodeRef.current = state.analyserNode;
     });
   }, [recordings.isRecording, recordings.recording, recorderContext]);
   /**
@@ -366,17 +325,11 @@ export default function RecordingListScreen() {
               }
             >
               <TimelineVisualizer
-                canvasWidth="100%"
-                canvasHeight={448}
-                samplesPerSecond={20}
-                timeWindowSeconds={10}
-                waveformSamples={waveformSamples}
-                bookmarks={recordingBookmarks}
-                currentDuration={recording?.duration ?? 0}
-                totalDuration={recording?.duration}
+                canvasWidth={canvasContainerDimensions.width}
+                canvasHeight={canvasContainerDimensions.height}
+                analyserNodeRef={analyserNodeRef}
                 backgroundColor={theme.colors.background}
                 barColor={theme.colors.barColor}
-                bookmarkColor={theme.colors.bookmarkColor}
               />
             </Suspense>
           ) : null}
