@@ -69,20 +69,27 @@ export default function RecordingListScreen() {
     width: number;
     height: number;
   } | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const onCanvasContainerElementMount = useCallback(
-    (current: HTMLDivElement | null) => {
-      if (current !== null) {
-        setCanvasContainerDimensions({
-          width: current.offsetWidth,
-          height: current.offsetHeight
-        });
-      } else {
-        setCanvasContainerDimensions(null);
+  // Use ResizeObserver to get actual dimensions after layout
+  useEffect(() => {
+    const element = canvasContainerRef.current;
+    console.log("[RecordScreen] ResizeObserver setup, element:", element);
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const {width, height} = entry.contentRect;
+        console.log("[RecordScreen] ResizeObserver fired:", width, height);
+        if (width > 0 && height > 0) {
+          setCanvasContainerDimensions({width, height});
+        }
       }
-    },
-    [setCanvasContainerDimensions]
-  );
+    });
+
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
   useEffect(() => {
     // if (!db.isGettingRecordings) {
     //   db.getRecordings();
@@ -311,10 +318,10 @@ export default function RecordingListScreen() {
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-64px)] bg-white dark:bg-black overflow-hidden">
       {/* Visualizer Section - Full height with centered content */}
-      <div className="flex-1 flex flex-col justify-center items-center px-4 py-8 md:px-6 relative min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col justify-center items-center px-4 py-8 md:px-6 relative overflow-hidden">
         <div
-          className="w-full max-w-300 h-full max-h-[min(28rem,calc(100vh-200px))] md:max-h-[min(22.5rem,calc(100vh-200px))] sm:max-h-[min(18.125rem,calc(100vh-180px))] bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg-apple overflow-hidden transition-all duration-300 relative hover:shadow-xl-apple hover:-translate-y-0.5"
-          ref={onCanvasContainerElementMount}
+          className="w-full max-w-300 h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg-apple overflow-hidden transition-all duration-300 relative hover:shadow-xl-apple hover:-translate-y-0.5"
+          ref={canvasContainerRef}
         >
           {canvasContainerDimensions !== null ? (
             <Suspense
