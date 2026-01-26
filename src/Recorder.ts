@@ -295,7 +295,8 @@ export default class Recorder extends EventEmitter<{
       {
         parameterData: {
           frameSize,
-          debug: 0
+          channelCount: 2,
+          queueFrameCount: 1
         }
       }
     );
@@ -341,7 +342,19 @@ export default class Recorder extends EventEmitter<{
     this.#currentState = recordingState;
     let pending = Promise.resolve();
     const onReceiveSamples = (e: MessageEvent) => {
-      const pcm: Float32Array<ArrayBuffer> = e.data.samples;
+      const channels: Float32Array<ArrayBuffer>[] = e.data.samples;
+
+      // TODO: Add support for stereo
+      const [samples = null] = channels;
+
+      if (samples === null) {
+        console.error("No samples received for encoding");
+        return;
+      }
+
+      const input = {
+        pcm: samples.slice(0)
+      };
 
       /**
        * encode samples
@@ -350,9 +363,7 @@ export default class Recorder extends EventEmitter<{
         .then(async () => {
           const result = await this.#opus.client.sendMessage(
             encodeFloat({
-              input: {
-                pcm: pcm.slice(0)
-              },
+              input,
               maxDataBytes,
               encoderId: encoderId.value
             })
@@ -368,14 +379,14 @@ export default class Recorder extends EventEmitter<{
           if (result.value.encoded === null) {
             console.debug(
               "Encoder returned null (not enough data for full frame); pcmLength=%d, encoderId=%s",
-              pcm.length,
+              samples.length,
               encoderId.value
             );
             return;
           }
           this.emit("encoded", {
             size: result.value.encoded.buffer.byteLength,
-            sampleCount: pcm.length,
+            sampleCount: samples.length,
             duration: result.value.encoded.duration,
             buffer: result.value.encoded.buffer,
             encoderId: encoderId.value

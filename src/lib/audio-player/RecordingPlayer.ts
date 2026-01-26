@@ -16,6 +16,7 @@ interface IAudioPlayerContext {
   decoder: Decoder;
   playedDuration: number;
   scheduledDuration: number;
+  readonly durationOffset: number;
   abortController: AbortController;
   startTime: number;
   currentTime: number | null;
@@ -116,13 +117,16 @@ export class RecordingPlayer extends EventEmitter<{
     const abortController = new AbortController();
     const {signal} = abortController;
 
+    const advanceCount = 10;
+
     const audioPlayerContext: IAudioPlayerContext = {
       recording,
       abortController,
       decoder,
-      playedDuration: 0,
-      scheduledDuration: 0,
-      startTime: this.#audioContext.currentTime,
+      playedDuration: startDuration,
+      scheduledDuration: startDuration,
+      durationOffset: startDuration,
+      startTime: this.#audioContext.currentTime + 2,
       currentTime: null,
       aborted: new Promise<void>(resolve => {
         signal.addEventListener(
@@ -141,9 +145,9 @@ export class RecordingPlayer extends EventEmitter<{
         if (scheduledPlayedRatio < 0.8) {
           return;
         }
-        const from = startDuration + audioPlayerContext.scheduledDuration;
+        const from = audioPlayerContext.scheduledDuration;
         console.log("Starting new interval from %o seconds", from);
-        await this.#playInterval(from, from + 2, audioPlayerContext);
+        await this.#playInterval(from, from + advanceCount, audioPlayerContext);
       }
     };
 
@@ -157,7 +161,7 @@ export class RecordingPlayer extends EventEmitter<{
       this.#analyserNode.connect(this.#audioContext.destination);
       await this.#playInterval(
         startDuration,
-        startDuration + 2,
+        startDuration + advanceCount,
         audioPlayerContext
       );
     } catch (err) {
@@ -251,7 +255,7 @@ export class RecordingPlayer extends EventEmitter<{
 
       const {audioBufferSourceNode, duration} = part;
 
-      const onPartEnded = Promise.race([
+      let onPartEnded = Promise.race([
         new Promise<void>((resolve, reject) => {
           audioBufferSourceNode.addEventListener(
             "ended",
@@ -268,20 +272,24 @@ export class RecordingPlayer extends EventEmitter<{
         audioPlayerContext.aborted
       ]);
 
-      const nodeStartTime = audioPlayerContext.startTime + part.delta;
-
-      audioBufferSourceNode.start(nodeStartTime);
+      audioBufferSourceNode.start(
+        audioPlayerContext.startTime +
+          part.delta -
+          audioPlayerContext.durationOffset
+      );
       audioPlayerContext.scheduledDuration += duration;
+
+      onPartEnded = onPartEnded.then(async () => {
+        this.#updateDuration(audioPlayerContext);
+        audioPlayerContext.playedDuration += duration;
+      });
 
       pending = pending
         .then(async () => {
-          this.#updateDuration(audioPlayerContext);
           await onPartEnded;
-          audioPlayerContext.playedDuration += duration;
           await audioPlayerContext.onFinishPart();
         })
         .catch(err => {
-          console.log("Stopping: %o", nodeStartTime);
           audioBufferSourceNode.stop(this.#audioContext.currentTime);
           return Promise.reject(err);
         });
