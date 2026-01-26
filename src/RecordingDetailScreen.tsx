@@ -4,10 +4,9 @@ import {
   useMemo,
   useState,
   Suspense,
-  // useRef,
-  // useEffect,
   memo,
-  ChangeEventHandler
+  ChangeEventHandler,
+  useRef
 } from "react";
 import useRecordingPlayer from "./useRecordingPlayer.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -16,6 +15,7 @@ import secondsToHumanReadable from "./secondsToHumanReadable.js";
 import Icon from "./Icon.js";
 import {filesize} from "filesize";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
+import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 
 // import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 // import {
@@ -26,8 +26,10 @@ import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
 export default memo(function RecordingDetailScreen() {
   const {recordingId} = useParams();
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
   const player = useRecordingPlayer({
     recordingId: recordingId ?? null,
+    analyserNodeRef,
     setCurrentTime
   });
 
@@ -103,25 +105,6 @@ export default memo(function RecordingDetailScreen() {
   const humanReadableRecordingSize = useMemo(
     () => filesize(recording?.size ?? 0).toString(),
     [recording]
-  );
-
-  const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-
-  const onCanvasContainerElementMount = useCallback(
-    (current: HTMLDivElement | null) => {
-      if (current !== null) {
-        setCanvasContainerDimensions({
-          width: current.offsetWidth,
-          height: current.offsetHeight
-        });
-      } else {
-        setCanvasContainerDimensions(null);
-      }
-    },
-    [setCanvasContainerDimensions]
   );
 
   const togglePlayer = useCallback(() => {
@@ -208,45 +191,6 @@ export default memo(function RecordingDetailScreen() {
               <div className="text-lg font-mono font-semibold mt-1">
                 {secondsToHumanReadable(currentTime)}
               </div>
-            </div>
-
-            {/* Visualizer */}
-            <div
-              className="flex-1 relative"
-              ref={onCanvasContainerElementMount}
-              style={{height: "320px"}}
-            >
-              {canvasContainerDimensions !== null ? (
-                <Suspense
-                  fallback={
-                    <div className="flex items-center justify-center h-full">
-                      <ActivityIndicator width={30} />
-                    </div>
-                  }
-                >
-                  {/* <TimelineVisualizer
-                    canvasHeight={320}
-                    canvasWidth={canvasContainerDimensions.width}
-                    samplesPerSecond={20}
-                    timeWindowSeconds={5}
-                    waveformSamples={waveformSamples}
-                    bookmarks={recordingBookmarks}
-                    currentDuration={
-                      player.playing?.cursor ? player.playing.cursor * 1000 : 0
-                    }
-                    totalDuration={recording?.duration}
-                    onBookmarkClick={handleBookmarkSeek}
-                    backgroundColor={theme.colors.background}
-                    barColor={theme.colors.barColor}
-                    bookmarkColor={theme.colors.bookmarkColor}
-                  /> */}
-                </Suspense>
-              ) : null}
-              {currentTime !== null && (
-                <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
-                  {secondsToHumanReadable(currentTime)}
-                </div>
-              )}
             </div>
           </div>
         </div>

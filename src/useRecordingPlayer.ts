@@ -1,7 +1,15 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import useRecorderContext from "./useRecorderContext.js";
 import {useRecorderDatabaseContext} from "./RecorderDatabaseContext.js";
 import {RecordingPlayer} from "./lib/audio-player/RecordingPlayer.js";
+import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 
 export interface IImmutablePlayingState {
   recordingId: string;
@@ -10,54 +18,64 @@ export interface IImmutablePlayingState {
 
 export default function useRecordingPlayer({
   recordingId,
+  analyserNodeRef,
   setCurrentTime
 }: {
   recordingId: string | null;
+  analyserNodeRef: RefObject<IAnalyserNode<IAudioContext> | null>;
   setCurrentTime?: (currentTime: number) => void;
 }) {
   const recorderContext = useRecorderContext();
   const recorderDatabase = useRecorderDatabaseContext();
-  const audioPlayerRef = useRef<RecordingPlayer | null>(null);
+  const playerRef = useRef<RecordingPlayer | null>(null);
   const [playing, setPlaying] = useState<boolean>(false);
 
   const pause = useCallback(() => {
-    if (audioPlayerRef.current === null) {
+    if (playerRef.current === null) {
       return;
     }
-    audioPlayerRef.current.destroy();
-    audioPlayerRef.current = null;
+    playerRef.current.destroy();
+    playerRef.current = null;
   }, []);
   const play = useCallback(
     (currentTime: number) => {
-      if (audioPlayerRef.current === null && recordingId !== null) {
-        audioPlayerRef.current = new RecordingPlayer({
+      if (playerRef.current === null && recordingId !== null) {
+        const player = new RecordingPlayer({
           db: recorderDatabase,
           opusClient: recorderContext.opus.client,
           audioContext: recorderContext.audioContext,
           recordingId
         });
-        audioPlayerRef.current.on("state", state => {
+        playerRef.current = player;
+        analyserNodeRef.current = player.analyserNode;
+        player.on("state", state => {
           setPlaying(state === "playing");
         });
-        audioPlayerRef.current.on("duration", ({duration}) => {
+        player.on("duration", ({duration}) => {
           setCurrentTime?.(duration);
         });
       }
-      audioPlayerRef.current?.play(currentTime);
+      playerRef.current?.play(currentTime);
     },
-    [recordingId, recorderContext, recorderDatabase, setCurrentTime]
+    [
+      recordingId,
+      recorderContext,
+      recorderDatabase,
+      setCurrentTime,
+      analyserNodeRef
+    ]
   );
   const seek = useCallback((newDuration: number) => {
-    if (audioPlayerRef.current === null) {
+    if (playerRef.current === null) {
       return;
     }
-    audioPlayerRef.current.setCurrentTime(newDuration);
+    playerRef.current.setCurrentTime(newDuration);
   }, []);
 
   useEffect(() => {
     if (
       recordingId === null ||
-      audioPlayerRef.current?.recordingId !== recordingId
+      playerRef.current?.recordingId !== recordingId
     ) {
       pause();
     }

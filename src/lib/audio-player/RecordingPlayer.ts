@@ -36,8 +36,8 @@ export class RecordingPlayer extends EventEmitter<{
   duration: {recordingId: string; duration: number};
 }> {
   public readonly recordingId;
+  public readonly analyserNode;
   readonly #audioContext;
-  readonly #analyserNode;
   readonly #opusClient;
   readonly #recorderDatabase;
   #audioPlayerContext: IAudioPlayerContext | null = null;
@@ -59,8 +59,8 @@ export class RecordingPlayer extends EventEmitter<{
     this.#opusClient = opusClient;
     this.recordingId = recordingId;
     this.#audioContext = audioContext;
-    this.#analyserNode = this.#audioContext.createAnalyser();
-    this.#analyserNode.fftSize = 2048;
+    this.analyserNode = this.#audioContext.createAnalyser();
+    this.analyserNode.fftSize = 2048;
     this.#audioPlayerContext = null;
   }
   #pending = Promise.resolve();
@@ -166,6 +166,9 @@ export class RecordingPlayer extends EventEmitter<{
           from + advanceCount,
           audioPlayerContext.recording.duration
         );
+        if (from === to) {
+          return;
+        }
         await this.#playInterval(from, to, audioPlayerContext);
       }
     };
@@ -176,7 +179,7 @@ export class RecordingPlayer extends EventEmitter<{
     await this.#audioContext.resume();
 
     try {
-      this.#analyserNode.connect(this.#audioContext.destination);
+      this.analyserNode.connect(this.#audioContext.destination);
       await this.#playInterval(
         startDuration,
         startDuration + advanceCount,
@@ -184,7 +187,7 @@ export class RecordingPlayer extends EventEmitter<{
       );
     } finally {
       this.#audioPlayerContext = null;
-      this.#analyserNode.disconnect(this.#audioContext.destination);
+      this.analyserNode.disconnect(this.#audioContext.destination);
     }
   }
   #updateDuration(audioPlayerContext: IAudioPlayerContext) {
@@ -339,7 +342,7 @@ export class RecordingPlayer extends EventEmitter<{
       part,
       audioPlayerContext
     );
-    audioBufferSourceNode.connect(this.#analyserNode);
+    audioBufferSourceNode.connect(this.analyserNode);
     return audioBufferSourceNode;
   }
   #destroyAudioPlayerContext(reason: RecordingPlayerAbortError) {
