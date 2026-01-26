@@ -12,6 +12,7 @@ import {EventEmitter} from "eventual-js";
 import type Client from "opus-codec-worker/actions/Client.js";
 
 interface IAudioPlayerContext {
+  id: number;
   recording: RecordingV1;
   decoder: Decoder;
   playedDuration: number;
@@ -24,8 +25,14 @@ interface IAudioPlayerContext {
   onFinishPart: () => Promise<void>;
 }
 
+export enum PlayerState {
+  Preparing = "preparing",
+  Playing = "playing",
+  Paused = "paused"
+}
+
 export class RecordingPlayer extends EventEmitter<{
-  state: "playing" | "paused" | "preparing";
+  state: PlayerState;
   duration: {recordingId: string; duration: number};
 }> {
   public readonly recordingId;
@@ -34,6 +41,7 @@ export class RecordingPlayer extends EventEmitter<{
   readonly #opusClient;
   readonly #recorderDatabase;
   #audioPlayerContext: IAudioPlayerContext | null = null;
+  #playbackId = 0;
   #state: "preparing" | "playing" | "paused" = "paused";
   public constructor({
     opusClient,
@@ -52,7 +60,7 @@ export class RecordingPlayer extends EventEmitter<{
     this.recordingId = recordingId;
     this.#audioContext = audioContext;
     this.#analyserNode = this.#audioContext.createAnalyser();
-    // this.#analyserNode.fftSize = 2048;
+    this.#analyserNode.fftSize = 2048;
     this.#audioPlayerContext = null;
   }
   #pending = Promise.resolve();
@@ -68,7 +76,7 @@ export class RecordingPlayer extends EventEmitter<{
           try {
             await this.#play(from);
           } finally {
-            this.#setState("paused");
+            this.#setState(PlayerState.Paused);
           }
         })
         .catch(err => {
@@ -77,28 +85,28 @@ export class RecordingPlayer extends EventEmitter<{
     }, 100);
   }
   public destroy() {
-    this.#destroyAudioPlayerContext();
-    this.emit("state", "paused");
+    this.#destroyAudioPlayerContext(new RecordingPlayerChangedError());
   }
   public setCurrentTime(currentTime: number) {
     this.destroy();
     this.play(currentTime);
   }
-  #setState(state: "preparing" | "playing" | "paused") {
+  #setState(state: PlayerState) {
     if (this.#state !== state) {
       this.#state = state;
       this.emit("state", state);
     }
   }
   async #play(startDuration: number) {
-    if (this.#state !== "paused") {
+    if (this.#audioPlayerContext !== null) {
+      throw new Error("Playback already in progress");
+    }
+
+    if (this.#state !== PlayerState.Paused) {
       return;
     }
 
-    this.#setState("preparing");
-
-    // Resume audio context if suspended
-    await this.#audioContext.resume();
+    this.#setState(PlayerState.Preparing);
 
     await using decoder = new Decoder(this.#opusClient);
 
@@ -117,16 +125,24 @@ export class RecordingPlayer extends EventEmitter<{
     const abortController = new AbortController();
     const {signal} = abortController;
 
-    const advanceCount = 10;
+    /**
+     * Advance count in seconds
+     */
+    const advanceCount = 4.0;
+
+    const playbackId = this.#playbackId++;
+
+    const maximumScheduledPlayedRatio = 0.5;
 
     const audioPlayerContext: IAudioPlayerContext = {
+      id: playbackId,
       recording,
       abortController,
       decoder,
       playedDuration: startDuration,
       scheduledDuration: startDuration,
       durationOffset: startDuration,
-      startTime: this.#audioContext.currentTime + 2,
+      startTime: this.#audioContext.currentTime,
       currentTime: null,
       aborted: new Promise<void>(resolve => {
         signal.addEventListener(
@@ -134,7 +150,7 @@ export class RecordingPlayer extends EventEmitter<{
           () => {
             resolve();
           },
-          {once: true}
+          {once: true, passive: true}
         );
       }),
       onFinishPart: async () => {
@@ -142,20 +158,22 @@ export class RecordingPlayer extends EventEmitter<{
           audioPlayerContext.playedDuration /
           audioPlayerContext.scheduledDuration;
         this.#updateDuration(audioPlayerContext);
-        if (scheduledPlayedRatio < 0.8) {
+        if (scheduledPlayedRatio < maximumScheduledPlayedRatio) {
           return;
         }
         const from = audioPlayerContext.scheduledDuration;
-        console.log("Starting new interval from %o seconds", from);
-        await this.#playInterval(from, from + advanceCount, audioPlayerContext);
+        const to = Math.min(
+          from + advanceCount,
+          audioPlayerContext.recording.duration
+        );
+        await this.#playInterval(from, to, audioPlayerContext);
       }
     };
 
-    signal.addEventListener("abort", err => {
-      console.log("Playback aborted: %o", err);
-    });
-
     this.#audioPlayerContext = audioPlayerContext;
+
+    // Resume audio context if suspended
+    await this.#audioContext.resume();
 
     try {
       this.#analyserNode.connect(this.#audioContext.destination);
@@ -164,8 +182,6 @@ export class RecordingPlayer extends EventEmitter<{
         startDuration + advanceCount,
         audioPlayerContext
       );
-    } catch (err) {
-      console.error("Error during playback:", err);
     } finally {
       this.#audioPlayerContext = null;
       this.#analyserNode.disconnect(this.#audioContext.destination);
@@ -192,7 +208,9 @@ export class RecordingPlayer extends EventEmitter<{
       throw new Error("No recording parts found");
     }
 
-    console.log("Starting to process recording parts from %o to %o", from, to);
+    if (from === to) {
+      return;
+    }
 
     const plannedParts = new Array<{
       part: IRecordingPartV1;
@@ -246,7 +264,7 @@ export class RecordingPlayer extends EventEmitter<{
       });
     }
 
-    this.emit("state", "playing");
+    this.#setState(PlayerState.Playing);
 
     let pending = Promise.resolve();
 
@@ -255,21 +273,20 @@ export class RecordingPlayer extends EventEmitter<{
 
       const {audioBufferSourceNode, duration} = part;
 
-      let onPartEnded = Promise.race([
-        new Promise<void>((resolve, reject) => {
+      const onPartEnded = Promise.race([
+        new Promise<void>(resolve => {
           audioBufferSourceNode.addEventListener(
             "ended",
             () => {
-              if (signal.aborted) {
-                reject(signal.reason);
-                return;
-              }
               resolve();
             },
-            {passive: true, once: true}
+            {passive: true, once: true, signal}
           );
         }),
-        audioPlayerContext.aborted
+        audioPlayerContext.aborted.then(() => {
+          audioBufferSourceNode.stop(this.#audioContext.currentTime);
+          return Promise.reject(new RecordingPlayerAbortError());
+        })
       ]);
 
       audioBufferSourceNode.start(
@@ -279,23 +296,16 @@ export class RecordingPlayer extends EventEmitter<{
       );
       audioPlayerContext.scheduledDuration += duration;
 
-      onPartEnded = onPartEnded.then(async () => {
-        this.#updateDuration(audioPlayerContext);
-        audioPlayerContext.playedDuration += duration;
-      });
-
-      pending = pending
-        .then(async () => {
-          await onPartEnded;
-          await audioPlayerContext.onFinishPart();
+      pending = Promise.all([
+        pending,
+        onPartEnded.then(async () => {
+          this.#updateDuration(audioPlayerContext);
+          audioPlayerContext.playedDuration += duration;
         })
-        .catch(err => {
-          audioBufferSourceNode.stop(this.#audioContext.currentTime);
-          return Promise.reject(err);
-        });
+      ]).then(async () => {
+        await audioPlayerContext.onFinishPart();
+      });
     }
-
-    console.log("Processed %o seconds of audio", processedDuration);
 
     await pending;
   }
@@ -332,11 +342,14 @@ export class RecordingPlayer extends EventEmitter<{
     audioBufferSourceNode.connect(this.#analyserNode);
     return audioBufferSourceNode;
   }
-  #destroyAudioPlayerContext() {
+  #destroyAudioPlayerContext(reason: RecordingPlayerAbortError) {
     if (this.#audioPlayerContext === null) {
       return;
     }
-    this.#audioPlayerContext.abortController.abort();
-    this.#audioPlayerContext = null;
+    this.#audioPlayerContext.abortController.abort(reason);
   }
 }
+
+export class RecordingPlayerAbortError {}
+
+export class RecordingPlayerChangedError extends RecordingPlayerAbortError {}

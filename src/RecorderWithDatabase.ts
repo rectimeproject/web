@@ -50,7 +50,7 @@ export default class RecorderWithDatabase extends Recorder {
   }) {
     const recordingId = await this.#database.create(data);
     if (recordingId === null) {
-      console.error("failed to create recording database item: %o", data);
+      console.error("Failed to create recording database item: %o", data);
       return;
     }
   }
