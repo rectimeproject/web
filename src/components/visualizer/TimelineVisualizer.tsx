@@ -46,14 +46,7 @@ export default function TimelineVisualizer({
   }, [barColor]);
 
   useEffect(() => {
-    console.log(
-      "[TimelineVisualizer] Init with dimensions:",
-      canvasWidth,
-      canvasHeight
-    );
-
     if (canvasWidth <= 0 || canvasHeight <= 0) {
-      console.log("[TimelineVisualizer] Invalid dimensions, skipping init");
       return;
     }
 
@@ -61,7 +54,6 @@ export default function TimelineVisualizer({
     let isDestroyed = false;
 
     const init = async () => {
-      console.log("[TimelineVisualizer] Creating PixiJS app...");
       await app.init({
         width: canvasWidth,
         height: canvasHeight,
@@ -72,18 +64,15 @@ export default function TimelineVisualizer({
       });
 
       if (isDestroyed || !canvasContainerRef.current) {
-        console.log("[TimelineVisualizer] Destroyed or no container, aborting");
         return;
       }
 
-      console.log("[TimelineVisualizer] Appending canvas to container");
       canvasContainerRef.current.appendChild(app.canvas);
       appRef.current = app;
 
       // Calculate bar count based on canvas width
       const barStep = BAR_WIDTH + BAR_GAP;
       const barCount = Math.floor(canvasWidth / barStep);
-      console.log("[TimelineVisualizer] Bar count:", barCount);
 
       // Initialize amplitude buffer with zeros
       amplitudesRef.current = new Array(barCount).fill(0);
