@@ -18,7 +18,7 @@ export const DeviceDimensionsContext = createContext<IDeviceDimensions | null>(
   null
 );
 
-function App({children}: PropsWithChildren<{}>) {
+function App({children}: PropsWithChildren) {
   // Initialize theme (sets data-theme attribute on document root)
   useTheme();
 

@@ -1,4 +1,4 @@
-import {useLocation, useNavigate, useParams} from "react-router";
+import {useParams} from "react-router";
 import {
   useCallback,
   useMemo,
@@ -22,6 +22,7 @@ import {useInterval} from "usehooks-ts";
 import RecordingTitleInput from "./RecordingTitleInput.js";
 import {useMutation} from "@tanstack/react-query";
 import useRecorderContext from "./useRecorderContext.js";
+import useRecordingDetailAudioTimestamp from "./hooks/useRecordingDetailAudioTimestamp.js";
 
 // import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 // import {
@@ -49,39 +50,6 @@ function RecordingDetailBlock({
       </div>
     </div>
   );
-}
-
-function useRecordingDetailAudioTimestamp() {
-  const {recordingId} = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const duration = useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const t = searchParams.get("t");
-    if (!t) {
-      return null;
-    }
-    const parsed = parseInt(t, 10);
-    if (isNaN(parsed) || parsed < 0) {
-      return null;
-    }
-    return parsed;
-  }, [location.search]);
-
-  const update = useCallback(
-    (duration: number) => {
-      const url = new URL(window.location.href);
-      if (recordingId) {
-        url.pathname = `/recording/${recordingId}`;
-      }
-      url.searchParams.set("t", Math.floor(duration).toString());
-      navigate(url.pathname + url.search, {replace: true});
-    },
-    [navigate, recordingId]
-  );
-
-  return [duration, update] as const;
 }
 
 export default memo(function RecordingDetailScreen() {

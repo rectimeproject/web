@@ -28,6 +28,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {randomUUID} from "./lib/randomUUID.js";
 import {useDebounceCallback} from "usehooks-ts";
 import {useGetRecordingByEncoderId} from "./hooks/queries/useRecordingQuery.js";
+import clsx from "clsx";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
@@ -322,9 +323,39 @@ export default function RecordScreen() {
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-64px)] bg-white dark:bg-black overflow-hidden">
       {/* Visualizer Section - Full height with centered content */}
-      <div className="flex-1 flex flex-col justify-center items-center px-4 py-8 md:px-6 relative overflow-hidden">
+      <div
+        className={clsx(
+          "flex-1",
+          "flex",
+          "flex-col",
+          "justify-center",
+          "items-center",
+          "px-4",
+          "py-8",
+          "md:px-6",
+          "relative",
+          "overflow-hidden",
+          "md:gap-0",
+          "gap-4"
+        )}
+      >
         <div
-          className="w-full lg:max-w-300 h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg-apple overflow-hidden transition-all duration-300 relative hover:shadow-xl-apple hover:-translate-y-0.5"
+          className={clsx(
+            "w-full",
+            "lg:max-w-300",
+            "h-[calc(60vh)]",
+            "lg:h-96",
+            "bg-gray-50",
+            "dark:bg-gray-900",
+            "rounded-3xl",
+            "shadow-lg-apple",
+            "overflow-hidden",
+            "transition-all",
+            "duration-300",
+            "relative",
+            "hover:shadow-xl-apple",
+            "hover:-translate-y-0.5"
+          )}
           ref={canvasContainerRef}
         >
           {canvasContainerDimensions !== null ? (
@@ -347,7 +378,26 @@ export default function RecordScreen() {
         </div>
 
         {/* Metadata Overlay on Visualizer */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] sm:w-[calc(100%-2rem)] max-w-300 flex flex-col sm:flex-row justify-between gap-2 sm:gap-0 items-start sm:items-center pointer-events-none z-10">
+        <div
+          className={clsx(
+            "md:absolute",
+            "md:bottom-8",
+            "md:left-1/2",
+            "md:-translate-x-1/2",
+            "md:w-[calc(100%-3rem)]",
+            "md:sm:w-[calc(100%-2rem)]",
+            "md:max-w-300",
+            "flex",
+            "flex-row",
+            "justify-between",
+            "gap-2",
+            "sm:gap-0",
+            "items-start",
+            "sm:items-center",
+            "pointer-events-none",
+            "z-10"
+          )}
+        >
           <div className="font-mono text-2xl sm:text-base font-semibold text-gray-900 dark:text-gray-100 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl backdrop-saturate-150 px-5 py-3 sm:px-3 sm:py-2 rounded-xl shadow-md-apple transition-all duration-200 hover:-translate-y-px hover:shadow-lg-apple">
             {secondsToHumanReadable(
               recording !== null ? recording.duration / 1000 : 0
@@ -361,7 +411,7 @@ export default function RecordScreen() {
 
       {/* Control Bar - Bottom Fixed */}
       <div className="flex lg:flex-row flex-col px-4 py-5 sm:px-3 sm:py-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_16px_rgb(0_0_0/0.04)]">
-        <div className="flex flex-col items-center lg:flex-row lg:max-w-300 mx-auto justify-between gap-4 sm:gap-2">
+        <div className="flex flex-row items-center lg:max-w-300 mx-auto justify-between gap-4 sm:gap-2">
           {/* Left: Settings button */}
           <button
             className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center cursor-pointer transition-all duration-150 text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
