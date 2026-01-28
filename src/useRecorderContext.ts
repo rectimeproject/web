@@ -1,5 +1,5 @@
 import {useContext} from "react";
-import {RecorderContext} from "./RecorderContext";
+import {RecorderContext} from "./RecorderContext.js";
 
 export default function useRecorderContext() {
   const recorder = useContext(RecorderContext);

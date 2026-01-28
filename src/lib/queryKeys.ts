@@ -8,16 +8,20 @@
 export const queryKeys = {
   recordings: {
     all: ["recordings"] as const,
-    lists: () => [...queryKeys.recordings.all, "list"] as const,
+    update: (id: string | null) =>
+      [...queryKeys.recordings.all, "update", id] as const,
+    lists: (limit: number | null = null) =>
+      [...queryKeys.recordings.all, "list", limit] as const,
     list: (filters?: {offset?: number; limit?: number}) =>
       [...queryKeys.recordings.lists(), filters] as const,
     details: () => [...queryKeys.recordings.all, "detail"] as const,
-    detail: (id: string) => [...queryKeys.recordings.details(), id] as const
+    detail: (id: string | null) =>
+      [...queryKeys.recordings.details(), id] as const
   },
   recordingNotes: {
     all: ["recordingNotes"] as const,
     lists: () => [...queryKeys.recordingNotes.all, "list"] as const,
-    byRecording: (recordingId: string) =>
+    byRecording: (recordingId: string | null) =>
       [...queryKeys.recordingNotes.lists(), recordingId] as const
   },
   appSettings: {

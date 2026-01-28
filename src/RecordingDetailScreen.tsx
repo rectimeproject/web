@@ -1,28 +1,93 @@
 import {useParams} from "react-router";
-import {useCallback, useMemo, useState} from "react";
-import useRecordingPlayer from "./useRecordingPlayer";
-import ActivityIndicator from "./ActivityIndicator";
-import {DateTime} from "luxon";
-import secondsToHumanReadable from "./secondsToHumanReadable";
-import TimelineVisualizer from "./components/visualizer/TimelineVisualizer";
-import Icon from "./Icon";
-import {filesize} from "filesize";
-import useTheme from "./useTheme";
-import {useRecordingQuery} from "./hooks/queries/useRecordingQuery";
-import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
-import BookmarkPanel from "./components/bookmarks/BookmarkPanel";
 import {
-  useUpdateRecordingNoteMutation,
-  useDeleteRecordingNoteMutation
-} from "./hooks/queries/useRecordingNotesMutations";
+  useCallback,
+  useMemo,
+  useState,
+  Suspense,
+  memo,
+  ChangeEventHandler,
+  useRef,
+  PropsWithChildren,
+  lazy
+} from "react";
+import useRecordingPlayer from "./useRecordingPlayer.js";
+import ActivityIndicator from "./ActivityIndicator.js";
+import {DateTime} from "luxon";
+import secondsToHumanReadable from "./secondsToHumanReadable.js";
+import Icon from "./Icon.js";
+import {filesize} from "filesize";
+import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
+import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
+import {useInterval} from "usehooks-ts";
+import RecordingTitleInput from "./RecordingTitleInput.js";
+import {useMutation} from "@tanstack/react-query";
+import useRecorderContext from "./useRecorderContext.js";
+import useRecordingDetailAudioTimestamp from "./hooks/useRecordingDetailAudioTimestamp.js";
 
-export default function RecordingDetailScreen() {
-  const theme = useTheme();
-  const player = useRecordingPlayer();
-  const {recordingId} = useParams<{recordingId: string}>();
+// import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
+// import {
+//   useUpdateRecordingNoteMutation,
+//   useDeleteRecordingNoteMutation
+// } from "./hooks/queries/useRecordingNotesMutations";
+
+const TimelineVisualizer = lazy(
+  () => import("./components/visualizer/TimelineVisualizer.js")
+);
+
+function RecordingDetailBlock({
+  title,
+  children
+}: PropsWithChildren<{
+  title: string;
+}>) {
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+        {title}
+      </div>
+      <div className="dark:text-white text-lg font-semibold font-mono">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export default memo(function RecordingDetailScreen() {
+  const [cachedDuration, setCachedDuration] =
+    useRecordingDetailAudioTimestamp();
+
+  const {recordingId} = useParams();
+  const [currentTime, setCurrentTime] = useState<number>(cachedDuration ?? 0);
+  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
+
+  const player = useRecordingPlayer({
+    recordingId: recordingId ?? null,
+    analyserNodeRef,
+    setCurrentTime
+  });
+
+  useInterval(() => {
+    setCachedDuration(currentTime);
+  }, 2000);
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
+
+  const onChangeCurrentTime = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    e => {
+      const newTime = e.target.valueAsNumber;
+      setCurrentTime(newTime);
+      player.seek(newTime);
+    },
+    [player]
+  );
+
+  // Capture real-time waveform data during playback
+  // const waveformSamples = usePlaybackWaveform(
+  //   player.analyserNode,
+  //   player.playing !== null
+  // );
+  // const waveformSamples = useRef(new Array<number>()).current;
 
   // Fetch recording and bookmarks using React Query
   const {
@@ -33,83 +98,95 @@ export default function RecordingDetailScreen() {
     refetch: refetchRecording
   } = useRecordingQuery(recordingIdOrNull);
 
-  const {data: recordingNotes, isLoading: isLoadingNotes} =
-    useRecordingNotesQuery(recordingIdOrNull);
-
-  const updateMutation = useUpdateRecordingNoteMutation();
-  const deleteMutation = useDeleteRecordingNoteMutation();
-
-  const recordingBookmarks = useMemo(() => {
-    if (!recordingNotes) return [];
-    return recordingNotes.map((n: any) => ({
-      id: n.id,
-      durationOffset: n.durationOffset,
-      title: n.title,
-      contents: n.contents
-    }));
-  }, [recordingNotes]);
-
-  const handleBookmarkSeek = useCallback(
-    (bookmark: {id: string; durationOffset: number}) => {
-      if (recording !== null && recording !== undefined) {
-        player.seek(recording, bookmark.durationOffset);
+  const {audioContext} = useRecorderContext();
+  const resumeAudioContextMutation = useMutation({
+    mutationFn: async () => {
+      if (audioContext.state !== "running") {
+        await audioContext.resume();
       }
     },
-    [player, recording]
-  );
+    mutationKey: ["resume-audio-context"]
+  });
 
-  const handleBookmarkUpdate = useCallback(
-    (id: string, title: string) => {
-      const note = recordingNotes?.find(n => n.id === id);
-      if (!note) return;
-      updateMutation.mutate({...note, title});
-    },
-    [recordingNotes, updateMutation]
-  );
+  // const {data: recordingNotes, isLoading: isLoadingNotes} =
+  //   useRecordingNotesQuery(recordingIdOrNull);
 
-  const handleBookmarkDelete = useCallback(
-    (id: string) => {
-      deleteMutation.mutate({noteId: id});
-    },
-    [deleteMutation]
-  );
+  // const updateMutation = useUpdateRecordingNoteMutation();
+  // const deleteMutation = useDeleteRecordingNoteMutation();
 
-  const play = useCallback(() => {
-    if (recording !== null && recording !== undefined) {
-      player.play(recording);
-    }
-  }, [recording, player]);
+  // const recordingBookmarks = useMemo(() => {
+  //   if (!recordingNotes) return [];
+  //   return recordingNotes.map(n => ({
+  //     id: n.id,
+  //     durationOffset: n.durationOffset,
+  //     title: n.title,
+  //     contents: n.contents
+  //   }));
+  // }, [recordingNotes]);
+
+  // const handleBookmarkSeek = useCallback(
+  //   (bookmark: {id: string; durationOffset: number}) => {
+  //     if (recording !== null && recording !== undefined) {
+  //       player.seek(bookmark.durationOffset);
+  //     }
+  //   },
+  //   [player, recording]
+  // );
+
+  // const handleBookmarkUpdate = useCallback(
+  //   (id: string, title: string) => {
+  //     const note = recordingNotes?.find(n => n.id === id);
+  //     if (!note) return;
+  //     updateMutation.mutate({...note, title});
+  //   },
+  //   [recordingNotes, updateMutation]
+  // );
+
+  // const handleBookmarkDelete = useCallback(
+  //   (id: string) => {
+  //     deleteMutation.mutate({noteId: id});
+  //   },
+  //   [deleteMutation]
+  // );
 
   const humanReadableRecordingSize = useMemo(
     () => filesize(recording?.size ?? 0).toString(),
     [recording]
   );
 
-  const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
-    width: number;
+  const togglePlayer = useCallback(() => {
+    if (player.playing) {
+      player.pause();
+      return;
+    }
+    if (!resumeAudioContextMutation.isPending) {
+      resumeAudioContextMutation.mutate();
+    }
+    player.play(currentTime);
+  }, [player, currentTime, resumeAudioContextMutation]);
+
+  const [visualizerDimensions, setVisualizerDimensions] = useState<{
     height: number;
+    width: number;
   } | null>(null);
 
-  const onCanvasContainerElementMount = useCallback(
-    (current: HTMLDivElement | null) => {
-      if (current !== null) {
-        setCanvasContainerDimensions({
-          width: current.offsetWidth,
-          height: current.offsetHeight
-        });
-      } else {
-        setCanvasContainerDimensions(null);
-      }
-    },
-    [setCanvasContainerDimensions]
-  );
+  const onVisualizerMounted = useCallback((el: HTMLDivElement | null) => {
+    if (el === null) {
+      return;
+    }
+
+    setVisualizerDimensions({
+      height: el.clientHeight,
+      width: el.clientWidth
+    });
+  }, []);
 
   // Loading state
-  if (isLoadingRecording || isLoadingNotes) {
+  if (isLoadingRecording) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center">
-          <ActivityIndicator width={50} />
+          <ActivityIndicator />
           <div className="mt-4 text-gray-600 dark:text-gray-400">
             Loading recording...
           </div>
@@ -152,142 +229,117 @@ export default function RecordingDetailScreen() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
+    <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col gap-4">
+      <RecordingTitleInput recording={recording} />
+
       {/* Hero Section with Visualizer */}
+      <div
+        className="w-full h-48"
+        ref={onVisualizerMounted}
+      >
+        <Suspense fallback={<ActivityIndicator />}>
+          {visualizerDimensions === null ? null : (
+            <TimelineVisualizer
+              barColor={0x000000}
+              backgroundColor={0xffffff}
+              analyserNodeRef={analyserNodeRef}
+              canvasHeight={visualizerDimensions.height}
+              canvasWidth={visualizerDimensions.width}
+            />
+          )}
+        </Suspense>
+      </div>
+
       <div className="mb-8">
         {/* Visualizer Container with Play Button */}
         <div className="relative bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg overflow-hidden mb-6">
           <div className="flex items-center p-6 gap-6">
             {/* Play/Pause Button */}
             <button
-              onClick={player.playing !== null ? player.pause : play}
+              onClick={togglePlayer}
               className="shrink-0 w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 shadow-lg"
-              aria-label={player.playing !== null ? "Pause" : "Play"}
+              aria-label={player.playing ? "Pause" : "Play"}
             >
-              <Icon name={player.playing !== null ? "pause" : "play_arrow"} />
+              <Icon name={player.playing ? "pause" : "play_arrow"} />
             </button>
 
-            {/* Visualizer */}
-            <div
-              className="flex-1 relative"
-              ref={onCanvasContainerElementMount}
-              style={{height: "320px"}}
-            >
-              {canvasContainerDimensions !== null ? (
-                <TimelineVisualizer
-                  canvasHeight={320}
-                  canvasWidth={canvasContainerDimensions.width}
-                  samplesPerSecond={20}
-                  timeWindowSeconds={5}
-                  waveformSamples={
-                    // Generate a simple waveform pattern for visualization during playback
-                    // since we don't store waveform data with recordings yet
-                    player.playing !== null
-                      ? Array.from(
-                          {length: 100},
-                          (_, i) =>
-                            80 + Math.sin(i * 0.3) * 40 + Math.random() * 30
-                        )
-                      : []
-                  }
-                  bookmarks={recordingBookmarks}
-                  currentDuration={
-                    player.playing?.cursor ? player.playing.cursor * 1000 : 0
-                  }
-                  totalDuration={recording?.duration}
-                  onBookmarkClick={handleBookmarkSeek}
-                  backgroundColor={theme.colors.background}
-                  barColor={theme.colors.barColor}
-                  bookmarkColor={theme.colors.bookmarkColor}
-                />
-              ) : null}
-              {player.playing !== null && player.playing.cursor !== null && (
-                <div className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-xl text-sm font-mono font-semibold shadow-md">
-                  {secondsToHumanReadable(player.playing.cursor)}
-                </div>
-              )}
+            {/* Player current time controller */}
+            <div className="flex flex-col flex-1">
+              <input
+                type="range"
+                min={0}
+                max={recording.duration / 1000}
+                value={currentTime}
+                onChange={onChangeCurrentTime}
+                className="w-full"
+              />
+              <div className="dark:text-white text-lg font-mono font-semibold mt-1">
+                {secondsToHumanReadable(currentTime)}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Metadata Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Duration
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {secondsToHumanReadable(recording.duration / 1000)}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Size
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {humanReadableRecordingSize}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Sample Rate
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.sampleRate}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Channels
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.channels}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Frame Size
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.frameSize}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Created
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {DateTime.fromJSDate(recording.createdAt).toLocaleString(
-                DateTime.DATE_SHORT
-              )}
-            </div>
-          </div>
+          <RecordingDetailBlock title={"Duration"}>
+            {secondsToHumanReadable(recording.duration / 1000)}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Size"}>
+            {humanReadableRecordingSize}
+          </RecordingDetailBlock>
+          <RecordingDetailBlock title={"Sample Rate"}>
+            {recording.sampleRate}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Channels"}>
+            {recording.channels}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Frame Size"}>
+            {recording.frameSize}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Created"}>
+            {DateTime.fromJSDate(recording.createdAt).toLocaleString(
+              DateTime.DATE_SHORT
+            )}
+          </RecordingDetailBlock>
         </div>
       </div>
 
       {/* Bookmarks Section */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-        <BookmarkPanel
-          bookmarks={recordingBookmarks}
-          onSeek={handleBookmarkSeek}
-          onUpdate={handleBookmarkUpdate}
-          onDelete={handleBookmarkDelete}
-          updatingIds={
-            new Set(
-              updateMutation.isPending && updateMutation.variables
-                ? [updateMutation.variables.id]
-                : []
-            )
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center p-8">
+              <ActivityIndicator width={30} />
+            </div>
           }
-          deletingIds={
-            new Set(
-              deleteMutation.isPending && deleteMutation.variables
-                ? [deleteMutation.variables.noteId]
-                : []
-            )
-          }
-        />
+        >
+          {/* <BookmarkPanel
+            bookmarks={recordingBookmarks}
+            onSeek={handleBookmarkSeek}
+            onUpdate={handleBookmarkUpdate}
+            onDelete={handleBookmarkDelete}
+            updatingIds={
+              new Set(
+                updateMutation.isPending && updateMutation.variables
+                  ? [updateMutation.variables.id]
+                  : []
+              )
+            }
+            deletingIds={
+              new Set(
+                deleteMutation.isPending && deleteMutation.variables
+                  ? [deleteMutation.variables.noteId]
+                  : []
+              )
+            }
+          /> */}
+        </Suspense>
       </div>
     </div>
   );
-}
+});

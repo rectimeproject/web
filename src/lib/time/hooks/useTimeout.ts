@@ -1,5 +1,5 @@
 import {useRef, useEffect, useCallback} from "react";
-import {useTime} from "../TimeProvider";
+import {useTime} from "../TimeProvider.js";
 
 interface UseTimeoutOptions {
   autoStart?: boolean;

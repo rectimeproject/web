@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef} from "react";
-import {useTimeout} from "./useTimeout";
+import {useTimeout} from "./useTimeout.js";
 
 export const useDebounce = <T extends (...args: any[]) => any>(
   callback: T,

@@ -1,24 +1,35 @@
-import webrtcAdapter from "webrtc-adapter";
+// Polyfills must be imported first
+import "./polyfills/explicit-resource-management.js";
+
+import "webrtc-adapter";
 import "./index.scss";
 import "./styles/global.css";
 import "@material-design-icons/font/index.css";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import reportWebVitals from "./reportWebVitals";
-import {StrictMode} from "react";
-import {RecorderContext, IRecorderContextValue} from "./RecorderContext";
-import {Opus} from "./Recorder";
+import App from "./App.js";
+import reportWebVitals from "./reportWebVitals.js";
+import {StrictMode, Suspense, lazy} from "react";
+import {RecorderContext, IRecorderContextValue} from "./RecorderContext.js";
+import {Opus} from "./Recorder.js";
 import {AudioContext} from "standardized-audio-context";
-import RecorderWithDatabase from "./RecorderWithDatabase";
-import RecorderDatabase from "./RecorderDatabase";
-import RecorderDatabaseContext from "./RecorderDatabaseContext";
+import RecorderWithDatabase from "./RecorderWithDatabase.js";
+import RecorderDatabase from "./RecorderDatabase.js";
+import RecorderDatabaseContext from "./RecorderDatabaseContext.js";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
-import RecordingDetailScreen from "./RecordingDetailScreen";
-import RecordScreen from "./RecordScreen";
-import RecordingListScreen from "./RecordingListScreen";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
-import {ReactQueryDevtools} from "@tanstack/react-query-devtools";
 import {SpeedInsights} from "@vercel/speed-insights/react";
+import ActivityIndicator from "./ActivityIndicator.js";
+import workletHref from "opus-codec-worker/worklet/worklet?url";
+
+const ReactQueryDevtools = lazy(async () => ({
+  default: (await import("@tanstack/react-query-devtools")).ReactQueryDevtools
+}));
+// Lazy load route components
+const RecordingDetailScreen = lazy(
+  async () => import("./RecordingDetailScreen.js")
+);
+const RecordScreen = lazy(() => import("./RecordScreen.js"));
+const RecordingListScreen = lazy(() => import("./RecordingListScreen.js"));
 async function render() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -34,8 +45,6 @@ async function render() {
     }
   });
 
-  console.log("webrtc adapter: %o", webrtcAdapter);
-
   const el = document.getElementById("root");
   if (!el) {
     console.error("failed to find root element");
@@ -47,11 +56,13 @@ async function render() {
   const audioContext = new AudioContext({
     sampleRate: 48000
   });
-  const pendingWorklet = audioContext.audioWorklet?.addModule("/worklet.js");
+  const pendingWorklet = audioContext.audioWorklet?.addModule(workletHref);
   const recorderContext: IRecorderContextValue = {
     opus,
     recorder: pendingWorklet
-      ? pendingWorklet.then(() => new RecorderWithDatabase(audioContext, opus))
+      ? Promise.all([pendingWorklet, opus.initialize()]).then(
+          () => new RecorderWithDatabase(audioContext, opus)
+        )
       : Promise.resolve(null),
     audioContext,
     worklet: Promise.resolve<void>(pendingWorklet)
@@ -70,22 +81,30 @@ async function render() {
           <RecorderContext.Provider value={recorderContext}>
             <BrowserRouter>
               <App>
-                <Routes>
-                  <Route path="/">
-                    <Route
-                      path="recording/:recordingId"
-                      Component={RecordingDetailScreen}
-                    />
-                    <Route
-                      index
-                      Component={RecordScreen}
-                    />
-                    <Route
-                      path="recordings"
-                      Component={RecordingListScreen}
-                    />
-                  </Route>
-                </Routes>
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center min-h-screen">
+                      <ActivityIndicator />
+                    </div>
+                  }
+                >
+                  <Routes>
+                    <Route path="/">
+                      <Route
+                        path="recording/:recordingId"
+                        Component={RecordingDetailScreen}
+                      />
+                      <Route
+                        index
+                        Component={RecordScreen}
+                      />
+                      <Route
+                        path="recordings"
+                        Component={RecordingListScreen}
+                      />
+                    </Route>
+                  </Routes>
+                </Suspense>
               </App>
             </BrowserRouter>
           </RecorderContext.Provider>

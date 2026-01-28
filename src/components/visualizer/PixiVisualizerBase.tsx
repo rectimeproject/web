@@ -1,7 +1,7 @@
 import {ReactNode} from "react";
 import * as PIXI from "pixi.js";
-import {usePixiApp} from "../../hooks/visualizer/usePixiApp";
-import {useResizeObserver} from "../../hooks/visualizer/useResizeObserver";
+import {usePixiApp} from "../../hooks/visualizer/usePixiApp.js";
+import {useResizeObserver} from "../../hooks/visualizer/useResizeObserver.js";
 
 interface PixiVisualizerBaseProps {
   canvasWidth?: number | string;
@@ -25,12 +25,17 @@ export default function PixiVisualizerBase({
   backgroundColor = 0xe9ecef,
   children
 }: PixiVisualizerBaseProps) {
-  const {containerRef, appRef, barsContainerRef, markersContainerRef, isPixiReady} =
-    usePixiApp({
-      width: 800,
-      height: typeof canvasHeight === "number" ? canvasHeight : 256,
-      backgroundColor
-    });
+  const {
+    containerRef,
+    appRef,
+    barsContainerRef,
+    markersContainerRef,
+    isPixiReady
+  } = usePixiApp({
+    width: 800,
+    height: typeof canvasHeight === "number" ? canvasHeight : 256,
+    backgroundColor
+  });
 
   const dimensions = useResizeObserver({
     containerRef,

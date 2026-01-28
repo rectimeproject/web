@@ -1,6 +1,6 @@
 import {useState} from "react";
-import BookmarkListItem from "./BookmarkListItem";
-import BookmarkEmpty from "./BookmarkEmpty";
+import BookmarkListItem from "./BookmarkListItem.js";
+import BookmarkEmpty from "./BookmarkEmpty.js";
 
 interface IBookmark {
   id: string;
@@ -45,7 +45,12 @@ export default function BookmarkPanel({
         className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -68,7 +73,12 @@ export default function BookmarkPanel({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 

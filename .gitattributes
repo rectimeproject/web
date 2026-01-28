@@ -1,1 +1,2 @@
 native/opus/**/* filter=lfs diff=lfs merge=lfs -text
+public/**/*.wasm filter=lfs diff=lfs merge=lfs -text

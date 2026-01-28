@@ -1,36 +1,44 @@
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
 import {AnalyserNode, IAudioContext} from "standardized-audio-context";
-import PixiVisualizerBase from "./PixiVisualizerBase";
-import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars";
+import PixiVisualizerBase from "./PixiVisualizerBase.js";
+import {useVisualizerBars} from "../../hooks/visualizer/useVisualizerBars.js";
+import useTheme from "../../useTheme.js";
+import * as PIXI from "pixi.js";
 
 interface FrequencyVisualizerProps {
   analyserNode: AnalyserNode<IAudioContext> | null;
   isPlaying: boolean;
   canvasWidth?: number | string;
   canvasHeight?: number | string;
-  backgroundColor?: number;
-  barColor?: number;
   barCount?: number;
 }
 
 /**
  * Frequency visualization component
- * Displays real-time FFT frequency spectrum
+ * Displays real-time FFT frequency spectrum with scrolling bars
  */
 export default function FrequencyVisualizer({
   analyserNode,
   isPlaying,
   canvasWidth = "100%",
   canvasHeight = 256,
-  backgroundColor = 0xe9ecef,
-  barColor = 0x495057,
   barCount = 64
 }: FrequencyVisualizerProps) {
+  const backdropsRef = useRef<PIXI.Graphics[]>([]);
+  const scrollOffsetRef = useRef(0);
+  const {colors} = useTheme();
+
+  // Derive backdrop color from bar color (lighter/darker based on theme)
+  const backdropColor =
+    colors.barColor === 0x1d1d1f
+      ? 0xd1d5db // Light theme: use light gray backdrop
+      : 0x3a3a3c; // Dark theme: use darker gray backdrop
+
   return (
     <PixiVisualizerBase
       canvasWidth={canvasWidth}
       canvasHeight={canvasHeight}
-      backgroundColor={backgroundColor}
+      backgroundColor={colors.background}
     >
       {({barsContainerRef, isPixiReady, dimensions}) => {
         const barsRef = useVisualizerBars({
@@ -38,6 +46,37 @@ export default function FrequencyVisualizer({
           isPixiReady,
           barsContainerRef
         });
+
+        // Create backdrop bars
+        useEffect(() => {
+          if (!isPixiReady || !barsContainerRef.current) return;
+
+          const container = barsContainerRef.current;
+
+          // Clear existing backdrops
+          backdropsRef.current.forEach(backdrop => {
+            container.removeChild(backdrop);
+            backdrop.destroy();
+          });
+          backdropsRef.current = [];
+
+          // Create backdrop bars
+          const backdrops: PIXI.Graphics[] = [];
+          for (let i = 0; i < barCount; i++) {
+            const backdrop = new PIXI.Graphics();
+            container.addChildAt(backdrop, i); // Add behind the actual bars
+            backdrops.push(backdrop);
+          }
+          backdropsRef.current = backdrops;
+
+          return () => {
+            backdropsRef.current.forEach(backdrop => {
+              container.removeChild(backdrop);
+              backdrop.destroy();
+            });
+            backdropsRef.current = [];
+          };
+        }, [isPixiReady, barsContainerRef, barCount]);
 
         // Frequency mode rendering effect
         useEffect(() => {
@@ -48,20 +87,63 @@ export default function FrequencyVisualizer({
           analyserNode.maxDecibels = -10;
 
           const data = new Uint8Array(analyserNode.frequencyBinCount);
-          const barWidth = dimensions.width / barCount;
+          const barSpacing = 4;
+          const barWidth = 8;
           let frameId: number;
 
           const draw = () => {
             analyserNode.getByteFrequencyData(data);
 
-            barsRef.current.forEach((bar, i) => {
-              const height = Math.max(data[i] ?? 0, 10);
-              const x = i * barWidth;
-              const y = dimensions.height / 2 - height / 2;
+            // Calculate total width needed for all bars
+            const totalBarsWidth =
+              barCount * barWidth + (barCount - 1) * barSpacing;
+            // Center the bars horizontally
+            const startX = (dimensions.width - totalBarsWidth) / 2;
 
-              bar.clear();
-              bar.rect(x, y, barWidth - 1, height);
-              bar.fill(barColor);
+            // Auto-scroll effect: move bars to the left over time
+            scrollOffsetRef.current += 0.5;
+            if (scrollOffsetRef.current >= barWidth + barSpacing) {
+              scrollOffsetRef.current = 0;
+            }
+
+            barsRef.current.forEach((bar, i) => {
+              const rawHeight = data[i] ?? 0;
+              // Bars occupy 80% of canvas height
+              const maxBarHeight = dimensions.height * 0.8;
+              const minBarHeight = 8;
+              const normalizedHeight = (rawHeight / 255) * maxBarHeight;
+              const height = Math.max(normalizedHeight, minBarHeight);
+
+              // Position bars from center with scroll offset
+              const x =
+                startX + i * (barWidth + barSpacing) - scrollOffsetRef.current;
+              const centerY = dimensions.height / 2;
+              const y = centerY - height / 2;
+
+              // Only draw bars that are visible in the canvas
+              if (x + barWidth >= 0 && x <= dimensions.width) {
+                // Draw backdrop (full height at 80%)
+                const backdrop = backdropsRef.current[i];
+                if (backdrop) {
+                  const backdropHeight = maxBarHeight;
+                  const backdropY = centerY - backdropHeight / 2;
+                  backdrop.clear();
+                  backdrop.rect(x, backdropY, barWidth, backdropHeight);
+                  backdrop.fill(backdropColor);
+                }
+
+                // Draw actual frequency bar
+                bar.clear();
+                bar.rect(x, y, barWidth, height);
+                bar.fill(colors.barColor);
+              } else {
+                // Clear bars outside visible area
+                bar.clear();
+                const backdrop = backdropsRef.current[i];
+                if (backdrop) {
+                  backdrop.clear();
+                }
+              }
             });
 
             frameId = requestAnimationFrame(draw);
@@ -72,8 +154,17 @@ export default function FrequencyVisualizer({
           return () => {
             cancelAnimationFrame(frameId);
             barsRef.current.forEach(bar => bar.clear());
+            backdropsRef.current.forEach(backdrop => backdrop.clear());
           };
-        }, [analyserNode, isPlaying, dimensions, barColor, barsRef]);
+        }, [
+          analyserNode,
+          isPlaying,
+          dimensions,
+          colors.barColor,
+          backdropColor,
+          barsRef,
+          barCount
+        ]);
 
         return null;
       }}

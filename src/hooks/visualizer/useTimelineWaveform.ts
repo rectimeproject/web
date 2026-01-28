@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import {useEffect} from "react";
 import * as PIXI from "pixi.js";
 
 interface Dimensions {
@@ -28,11 +28,6 @@ export function useTimelineWaveform({
   timeWindowSeconds
 }: UseTimelineWaveformOptions): void {
   useEffect(() => {
-    console.log("[useTimelineWaveform] Rendering", {
-      barsLength: barsRef.current.length,
-      samplesLength: waveformSamples.length
-    });
-
     if (!barsRef.current.length) {
       console.log("[useTimelineWaveform] No bars created yet");
       return;
@@ -59,12 +54,10 @@ export function useTimelineWaveform({
     const startIndex = Math.max(0, waveformSamples.length - maxSamplesInWindow);
     const visibleSamples = waveformSamples.slice(startIndex);
 
-    // Calculate bar width - fit all visible samples into canvas width
-    const barSpacing = 1;
-    const barWidth = Math.max(
-      2,
-      dimensions.width / visibleSamples.length - barSpacing
-    );
+    // Calculate bar width - fixed width for consistent appearance
+    const barSpacing = 2;
+    // Fixed bar width based on canvas width as reference
+    const barWidth = 6;
 
     // Clear all bars first
     barsRef.current.forEach(bar => {
@@ -74,15 +67,10 @@ export function useTimelineWaveform({
     });
 
     // Render visible waveform bars (only as many as we have bars for)
-    const samplesToRender = Math.min(visibleSamples.length, barsRef.current.length);
-
-    console.log("[useTimelineWaveform] Rendering waveform", {
-      visibleSamplesLength: visibleSamples.length,
-      barsLength: barsRef.current.length,
-      samplesToRender,
-      barWidth,
-      canvasWidth: dimensions.width
-    });
+    const samplesToRender = Math.min(
+      visibleSamples.length,
+      barsRef.current.length
+    );
 
     for (let i = 0; i < samplesToRender; i++) {
       const amplitude = visibleSamples[i] ?? null;
@@ -99,12 +87,17 @@ export function useTimelineWaveform({
 
       const x = i * (barWidth + barSpacing);
 
-      // Normalize amplitude to be more visible (0-255 range from analyser)
+      // Normalize amplitude to be more visible (0-100 range from usePlaybackWaveform)
       // Apply logarithmic scaling for better visual representation
-      const normalizedAmp = Math.min(amplitude / 255, 1);
+      const normalizedAmp = Math.min(amplitude / 100, 1);
       const boostedAmp = Math.pow(normalizedAmp, 0.7); // Power curve for better visibility
-      const height = Math.max(boostedAmp * dimensions.height * 0.9, 4);
-      const y = dimensions.height / 2 - height / 2;
+      // Bars grow from center, occupying up to 80% of canvas height total
+      const maxBarHeight = dimensions.height * 0.8;
+      const minBarHeight = 4;
+      const height = Math.max(boostedAmp * maxBarHeight, minBarHeight);
+      // Position bar from vertical center, growing up and down equally
+      const centerY = dimensions.height / 2;
+      const y = centerY - height / 2;
 
       bar.clear();
 
@@ -113,7 +106,7 @@ export function useTimelineWaveform({
       bar.roundRect(x, y, barWidth, height, radius);
 
       // Full opacity for better visibility
-      bar.fill({ color: barColor, alpha: 1 });
+      bar.fill({color: barColor, alpha: 1});
     }
   }, [
     waveformSamples,

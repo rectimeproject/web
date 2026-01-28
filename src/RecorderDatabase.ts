@@ -1,7 +1,8 @@
-import {CodecId} from "opus-codec-worker/actions/actions";
+import {CodecId} from "opus-codec-worker/actions/actions.js";
 import {Database} from "idb-javascript";
 import {boundMethod} from "autobind-decorator";
-import DatabaseThreadDummy from "idb-javascript/src/DatabaseThreadDummy";
+import DatabaseThreadDummy from "idb-javascript/src/DatabaseThreadDummy.js";
+import {randomUUID} from "./lib/randomUUID.js";
 
 export interface IRecordingDataOffset {
   /**
@@ -55,14 +56,25 @@ export interface IRecordingNote {
   title: string;
 }
 
+export interface IRecordingPartV1 {
+  recordingId: string;
+  id: string;
+  encoded: Blob;
+  format: "opus";
+  partIndex: number;
+  sampleCount: number;
+  version: 1;
+}
+
 export default class RecorderDatabase extends Database<{
   recordings: RecordingV1;
   recordingData: RecordingDataV1;
   recordingNotes: IRecordingNote;
+  recordingParts: IRecordingPartV1;
 }> {
   // readonly #encodingQueue = new Map<string, IBlobPartQueue>();
   public constructor(databaseName: string) {
-    super(databaseName, 1, {
+    super(databaseName, 2, {
       thread: new DatabaseThreadDummy()
     });
   }
@@ -136,7 +148,7 @@ export default class RecorderDatabase extends Database<{
       name: "Untitled",
       encoderId,
       createdAt: new Date(),
-      id: crypto.getRandomValues(new Uint32Array(4)).join("-")
+      id: randomUUID()
     };
 
     return this.transaction("recordings", "readwrite")
@@ -146,6 +158,53 @@ export default class RecorderDatabase extends Database<{
   public async close() {
     (await this.result())?.close();
   }
+  public async addRecordingPart(part: {
+    encoderId: string;
+    partIndex: number;
+    sampleCount: number;
+    format: "opus";
+    encoded: Blob;
+  }) {
+    const recording = await this.transaction("recordings", "readonly")
+      .objectStore("recordings")
+      .index("encoderId")
+      .get(part.encoderId);
+    if (recording === null) {
+      throw new Error(`Recording not found for encoderId: ${part.encoderId}`);
+    }
+
+    const [recordingPartKey] = await Promise.all([
+      this.transaction("recordingParts", "readwrite")
+        .objectStore("recordingParts")
+        .put({
+          partIndex: part.partIndex,
+          recordingId: recording.id,
+          encoded: part.encoded,
+          format: part.format,
+          sampleCount: part.sampleCount,
+          id: randomUUID(),
+          version: 1
+        }),
+      this.transaction(["recordings"], "readwrite")
+        .objectStore("recordings")
+        .put({
+          ...recording,
+          size: recording.size + part.encoded.size,
+          duration:
+            recording.duration +
+            (part.sampleCount / recording.sampleRate) * 1000
+        })
+    ]);
+
+    if (recordingPartKey === null) {
+      throw new Error(`Failed to add recording part: ${part.partIndex}`);
+    }
+
+    return true;
+  }
+  /**
+   * @deprecated Use addRecordingPart instead
+   */
   public async addBlobPart({
     encoderId,
     blobPart,
@@ -170,9 +229,7 @@ export default class RecorderDatabase extends Database<{
       .index("recordingId")
       .get(recording.id);
     if (!recordingData) {
-      const recordingDataId = crypto
-        .getRandomValues(new Uint32Array(4))
-        .join("-");
+      const recordingDataId = randomUUID();
 
       recordingData = {
         version: 1,
@@ -249,49 +306,64 @@ export default class RecorderDatabase extends Database<{
     return true;
   }
   @boundMethod protected override onUpgradeNeeded(
-    _: IDBVersionChangeEvent
+    e: IDBVersionChangeEvent
   ): void {
     const db = this.request().result;
-    // recordingBlobParts
-    const recordingBlobParts = db.createObjectStore("recordingData", {
-      keyPath: "id",
-      autoIncrement: true
-    });
-    recordingBlobParts.createIndex("id", "id", {
-      unique: true
-    });
-    recordingBlobParts.createIndex("recordingId", "recordingId", {
-      unique: false
-    });
-    recordingBlobParts.createIndex("createdAt", "createdAt", {
-      unique: false
-    });
-    // recordings
-    const recordings = db.createObjectStore("recordings", {
-      keyPath: "id",
-      autoIncrement: false
-    });
-    recordings.createIndex("id", "id", {
-      unique: true
-    });
-    recordings.createIndex("encoderId", "encoderId", {
-      unique: true
-    });
-    recordings.createIndex("createdAt", "createdAt", {
-      unique: false
-    });
-    // recordingNotes
-    const recordingNotes = db.createObjectStore("recordingNotes", {
-      keyPath: "id"
-    });
-    recordingNotes.createIndex("id", "id", {
-      unique: true
-    });
-    recordingNotes.createIndex("createdAt", "createdAt", {
-      unique: false
-    });
-    recordingNotes.createIndex("recordingId", "recordingId", {
-      unique: false
-    });
+
+    if (e.oldVersion < 1) {
+      // recordingBlobParts
+      const recordingBlobParts = db.createObjectStore("recordingData", {
+        keyPath: "id",
+        autoIncrement: true
+      });
+      recordingBlobParts.createIndex("id", "id", {
+        unique: true
+      });
+      recordingBlobParts.createIndex("recordingId", "recordingId", {
+        unique: false
+      });
+      recordingBlobParts.createIndex("createdAt", "createdAt", {
+        unique: false
+      });
+      // recordings
+      const recordings = db.createObjectStore("recordings", {
+        keyPath: "id",
+        autoIncrement: false
+      });
+      recordings.createIndex("id", "id", {
+        unique: true
+      });
+      recordings.createIndex("encoderId", "encoderId", {
+        unique: true
+      });
+      recordings.createIndex("createdAt", "createdAt", {
+        unique: false
+      });
+      // recordingNotes
+      const recordingNotes = db.createObjectStore("recordingNotes", {
+        keyPath: "id"
+      });
+      recordingNotes.createIndex("id", "id", {
+        unique: true
+      });
+      recordingNotes.createIndex("createdAt", "createdAt", {
+        unique: false
+      });
+      recordingNotes.createIndex("recordingId", "recordingId", {
+        unique: false
+      });
+    }
+
+    if (e.oldVersion < 2) {
+      const recordingParts = db.createObjectStore("recordingParts", {
+        keyPath: ["recordingId", "partIndex"]
+      });
+      recordingParts.createIndex("recordingId", "recordingId", {
+        unique: false
+      });
+      recordingParts.createIndex("partIndex", "partIndex", {
+        unique: false
+      });
+    }
   }
 }

@@ -1,5 +1,5 @@
 import {createContext, useContext} from "react";
-import RecorderDatabase from "./RecorderDatabase";
+import RecorderDatabase from "./RecorderDatabase.js";
 
 const RecorderDatabaseContext = createContext<RecorderDatabase | null>(null);
 
