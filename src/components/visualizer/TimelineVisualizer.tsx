@@ -1,9 +1,8 @@
-import {Application, Container, Graphics, Ticker} from "pixi.js";
+import {Container, Graphics, Ticker} from "pixi.js";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 
 import {memo} from "react";
-import {initDevtools} from "@pixi/devtools";
 
 /**
  * Calculate RMS (Root Mean Square) amplitude from PCM data
@@ -31,10 +30,12 @@ function useInitPixiApplication({
 
   useEffect(() => {
     const id = effectCount.current++;
-    const app = new Application();
     const abortController = new AbortController();
     const containerEl = containerRef.current;
     const initializingApp = (async () => {
+      const {Application} = await import("pixi.js");
+      const app = new Application();
+
       console.log("[%d] Starting", id);
 
       if (!containerEl) {
@@ -60,10 +61,13 @@ function useInitPixiApplication({
         preference: "webgl"
       });
 
-      await initDevtools({
-        app,
-        importPixi: false
-      });
+      if (import.meta.env.DEV) {
+        const {initDevtools} = await import("@pixi/devtools");
+        await initDevtools({
+          app,
+          importPixi: false
+        });
+      }
 
       console.log("[%d] DevTools is ready", id);
 
