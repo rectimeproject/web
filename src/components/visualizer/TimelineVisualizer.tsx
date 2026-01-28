@@ -218,10 +218,11 @@ export default memo(function TimelineVisualizer({
       // Create and apply the glow filter to the bars container
       glowFilter = new TimelineGlowFilter({
         canvasSize: [canvasWidth, canvasHeight],
-        glowIntensity: 1.0,
-        glowRadius: 12.0,
-        baseColor: [0.15, 0.5, 0.85], // Cyan base
-        glowColor: [0.85, 0.25, 0.65] // Magenta glow
+        glowIntensity: 1.2,
+        glowRadius: 15.0,
+        baseColor: [1.0, 0.4, 0.1], // Orange base for fire
+        glowColor: [1.0, 0.2, 0.0], // Red-orange glow
+        flameIntensity: 1.0
       });
       barsContainer.filters = [glowFilter];
 
