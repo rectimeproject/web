@@ -6,7 +6,8 @@ import {
   Suspense,
   memo,
   ChangeEventHandler,
-  useRef
+  useRef,
+  PropsWithChildren
 } from "react";
 import useRecordingPlayer from "./useRecordingPlayer.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -22,6 +23,24 @@ import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 //   useUpdateRecordingNoteMutation,
 //   useDeleteRecordingNoteMutation
 // } from "./hooks/queries/useRecordingNotesMutations";
+
+function RecordingDetailBlock({
+  title,
+  children
+}: PropsWithChildren<{
+  title: string;
+}>) {
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+        {title}
+      </div>
+      <div className="dark:text-white text-lg font-semibold font-mono">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default memo(function RecordingDetailScreen() {
   const {recordingId} = useParams();
@@ -120,7 +139,7 @@ export default memo(function RecordingDetailScreen() {
     return (
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center">
-          <ActivityIndicator width={50} />
+          <ActivityIndicator />
           <div className="mt-4 text-gray-600 dark:text-gray-400">
             Loading recording...
           </div>
@@ -188,7 +207,7 @@ export default memo(function RecordingDetailScreen() {
                 onChange={onChangeCurrentTime}
                 className="w-full"
               />
-              <div className="text-lg font-mono font-semibold mt-1">
+              <div className="dark:text-white text-lg font-mono font-semibold mt-1">
                 {secondsToHumanReadable(currentTime)}
               </div>
             </div>
@@ -197,56 +216,37 @@ export default memo(function RecordingDetailScreen() {
 
         {/* Metadata Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Duration
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {secondsToHumanReadable(recording.duration / 1000)}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
+          <RecordingDetailBlock title={"Duration"}>
+            {secondsToHumanReadable(recording.duration / 1000)}
+          </RecordingDetailBlock>
+          {/* <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               Size
             </div>
             <div className="text-lg font-semibold font-mono">
               {humanReadableRecordingSize}
             </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Sample Rate
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.sampleRate}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Channels
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.channels}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Frame Size
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {recording.frameSize}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Created
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {DateTime.fromJSDate(recording.createdAt).toLocaleString(
-                DateTime.DATE_SHORT
-              )}
-            </div>
-          </div>
+          </div> */}
+          <RecordingDetailBlock title={"Size"}>
+            {humanReadableRecordingSize}
+          </RecordingDetailBlock>
+          <RecordingDetailBlock title={"Sample Rate"}>
+            {recording.sampleRate}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Channels"}>
+            {recording.channels}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Frame Size"}>
+            {recording.frameSize}
+          </RecordingDetailBlock>
+
+          <RecordingDetailBlock title={"Created"}>
+            {DateTime.fromJSDate(recording.createdAt).toLocaleString(
+              DateTime.DATE_SHORT
+            )}
+          </RecordingDetailBlock>
         </div>
       </div>
 

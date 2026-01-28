@@ -34,6 +34,7 @@ export enum PlayerState {
 export class RecordingPlayer extends EventEmitter<{
   state: PlayerState;
   duration: {recordingId: string; duration: number};
+  samples: Float32Array;
 }> {
   public readonly recordingId;
   public readonly analyserNode;
@@ -60,7 +61,7 @@ export class RecordingPlayer extends EventEmitter<{
     this.recordingId = recordingId;
     this.#audioContext = audioContext;
     this.analyserNode = this.#audioContext.createAnalyser();
-    this.analyserNode.fftSize = 2048;
+    this.analyserNode.fftSize = 2 ** 10;
     this.#audioPlayerContext = null;
   }
   #pending = Promise.resolve();

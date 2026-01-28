@@ -1,10 +1,9 @@
-import {Application, Graphics} from "pixi.js";
-import {useEffect, useRef} from "react";
+import {Application, Container, Graphics, Ticker} from "pixi.js";
+import {RefObject, useEffect, useMemo, useRef} from "react";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 
-const BAR_WIDTH = 3;
-const BAR_GAP = 2;
-const MIN_BAR_HEIGHT = 2;
+import {memo} from "react";
+import {initDevtools} from "@pixi/devtools";
 
 /**
  * Calculate RMS (Root Mean Square) amplitude from PCM data
@@ -19,143 +18,264 @@ function calculateRMS(buffer: Float32Array): number {
   return Math.sqrt(sum / buffer.length);
 }
 
-export default function TimelineVisualizer({
+type PixiCallback<T> = (value: T) => void;
+
+function useInitPixiApplication({
+  containerRef
+}: {
+  containerRef: RefObject<HTMLDivElement | null>;
+}) {
+  const tickCallbacks = useRef<Set<PixiCallback<Ticker>>>(new Set());
+  const constructCallbacks = useRef<Set<PixiCallback<Container>>>(new Set());
+  const effectCount = useRef(0);
+
+  useEffect(() => {
+    const id = effectCount.current++;
+    const app = new Application();
+    const abortController = new AbortController();
+    const containerEl = containerRef.current;
+    const initializingApp = (async () => {
+      console.log("[%d] Starting", id);
+
+      if (!containerEl) {
+        return null;
+      }
+
+      console.log("[%d] Initializing", id);
+
+      await app.init({
+        width: containerEl.clientWidth,
+        height: containerEl.clientHeight,
+        backgroundColor: 0x000000,
+        antialias: true,
+        roundPixels: true,
+        eventFeatures: {
+          click: true,
+          move: true
+        },
+        useBackBuffer: true,
+        hello: true,
+        resolution: window.devicePixelRatio ?? 1,
+        autoDensity: true,
+        preference: "webgl"
+      });
+
+      await initDevtools({
+        app,
+        importPixi: false
+      });
+
+      console.log("[%d] DevTools is ready", id);
+
+      console.log("[%d] Initialized", id);
+
+      if (abortController.signal.aborted) {
+        console.log("[%d] Aborted", id);
+        return app;
+      }
+
+      console.log(
+        app.screen.width,
+        app.screen.width,
+        app.stage.width,
+        app.stage.height
+      );
+      console.log("[%d] Starting", id);
+
+      for (const cb of constructCallbacks.current) {
+        cb(app.stage);
+      }
+
+      app.start();
+      console.log("[%d] Started", id);
+
+      app.ticker.add(() => {
+        for (const cb of tickCallbacks.current) {
+          cb(app.ticker);
+        }
+      });
+
+      containerEl.appendChild(app.canvas);
+
+      return app;
+    })();
+
+    return () => {
+      console.log("[%d] Cleaning up", id);
+      abortController.abort();
+      initializingApp.then(app => {
+        if (app === null) {
+          console.log("[%d] Application is null", id);
+          return;
+        }
+        console.log("[%d] Destroying", id);
+        app.destroy(true, {children: true});
+      });
+    };
+  });
+
+  const manageCallbacks = function <T>(
+    callbacks: RefObject<Set<PixiCallback<T>>>
+  ) {
+    return (cb: PixiCallback<T>) => {
+      callbacks.current.add(cb);
+      return () => {
+        callbacks.current.delete(cb);
+      };
+    };
+  };
+
+  const pixiApplicationContext = useMemo(
+    () => ({
+      onTick: manageCallbacks(tickCallbacks),
+      onConstruct: manageCallbacks(constructCallbacks)
+    }),
+    []
+  );
+
+  return pixiApplicationContext;
+}
+
+export default memo(function TimelineVisualizer({
   canvasWidth,
   canvasHeight,
   analyserNodeRef,
-  backgroundColor = 0x1a1a1a,
-  barColor = 0x007aff
+  backgroundColor,
+  barColor
 }: {
   analyserNodeRef: React.RefObject<IAnalyserNode<IAudioContext> | null>;
   canvasWidth: number;
   canvasHeight: number;
-  backgroundColor?: number;
-  barColor?: number;
+  backgroundColor: number;
+  barColor: number;
 }) {
-  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  const appRef = useRef<Application | null>(null);
-  const barsRef = useRef<Graphics[]>([]);
-  const amplitudesRef = useRef<number[]>([]);
-  const timeDomainDataRef = useRef<Float32Array | null>(null);
-  const frameCounterRef = useRef(0);
-  const barColorRef = useRef(barColor);
-
-  // Keep bar color in sync via effect
-  useEffect(() => {
-    barColorRef.current = barColor;
-  }, [barColor]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const {onTick, onConstruct} = useInitPixiApplication({
+    containerRef
+  });
 
   useEffect(() => {
-    if (canvasWidth <= 0 || canvasHeight <= 0) {
-      return;
-    }
+    const bars = new Array<Graphics>();
 
-    const app = new Application();
-    let isDestroyed = false;
+    const calculateBarDimensions = ({barCount}: {barCount: number}) => {
+      const realBarWidth = Math.floor(canvasWidth / barCount);
+      const barGap = realBarWidth * 0.4;
+      const totalBarGap = Math.ceil((barCount - 1) * barGap);
+      const barWidth = (canvasWidth - totalBarGap) / barCount;
+      return {barCount, barWidth, barGap};
+    };
 
-    const init = async () => {
-      await app.init({
+    const desiredBarCount = canvasWidth * (1 / 16);
+    const barCount = Math.floor(canvasWidth / (canvasWidth / desiredBarCount));
+    const {barGap, barWidth} = calculateBarDimensions({
+      barCount
+    });
+    const removeConstructCallback = onConstruct(stage => {
+      stage.removeChildren();
+
+      const container = new Container({
+        x: 0,
+        y: 0,
         width: canvasWidth,
-        height: canvasHeight,
-        backgroundColor,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true
+        height: canvasHeight
       });
 
-      if (isDestroyed || !canvasContainerRef.current) {
+      container.addChild(
+        new Graphics({
+          x: 0,
+          y: 0,
+          width: canvasWidth,
+          height: canvasHeight
+        })
+          .rect(0, 0, canvasWidth, canvasHeight)
+          .fill(backgroundColor)
+      );
+
+      for (let i = 0; i < barCount; i++) {
+        const bar = new Graphics({
+          x: i * (barWidth + barGap),
+          y: canvasHeight / 2
+        });
+        bars.push(bar);
+        container.addChild(bar);
+      }
+      stage.addChild(container);
+    });
+
+    const amplitudeRecords = new Array<number>(barCount).fill(0);
+    let recordIndex = 0;
+    const MAX_COLOR = 2 ** 24 - 1;
+    let timeDomainData: Float32Array | null = null;
+
+    const removeTickCallback = onTick(() => {
+      const analyserNode = analyserNodeRef.current;
+      if (analyserNode === null) {
         return;
       }
 
-      canvasContainerRef.current.appendChild(app.canvas);
-      appRef.current = app;
-
-      // Calculate bar count based on canvas width
-      const barStep = BAR_WIDTH + BAR_GAP;
-      const barCount = Math.floor(canvasWidth / barStep);
-
-      // Initialize amplitude buffer with zeros
-      amplitudesRef.current = new Array(barCount).fill(0);
-
-      // Create bar graphics - positioned from left, will scroll
-      const bars: Graphics[] = [];
-      for (let i = 0; i < barCount; i++) {
-        const bar = new Graphics();
-        bar.x = i * barStep;
-        bars.push(bar);
-        app.stage.addChild(bar);
+      if (!timeDomainData || timeDomainData.length !== analyserNode.fftSize) {
+        timeDomainData = new Float32Array(analyserNode.fftSize);
       }
-      barsRef.current = bars;
 
-      // Main render loop
-      app.ticker.add(() => {
-        const analyserNode = analyserNodeRef.current;
-        const centerY = canvasHeight / 2;
-        const maxBarHeight = canvasHeight * 0.8; // 80% of canvas height
+      analyserNode.getFloatTimeDomainData(timeDomainData);
 
-        // Sample audio data every few frames for smoother visualization
-        frameCounterRef.current++;
-        if (frameCounterRef.current % 2 === 0 && analyserNode) {
-          // Ensure buffer is correct size
-          if (
-            !timeDomainDataRef.current ||
-            timeDomainDataRef.current.length !== analyserNode.fftSize
-          ) {
-            timeDomainDataRef.current = new Float32Array(analyserNode.fftSize);
-          }
+      {
+        const rms = calculateRMS(timeDomainData);
+        amplitudeRecords[recordIndex % amplitudeRecords.length] = Math.min(
+          rms * 4.0,
+          1.0
+        );
+        recordIndex++;
+      }
 
-          // Get PCM data
-          analyserNode.getFloatTimeDomainData(timeDomainDataRef.current);
+      const maxBarHeight = canvasHeight * 0.8;
 
-          // Calculate amplitude
-          const rms = calculateRMS(timeDomainDataRef.current);
-          // Apply some gain and clamp to 0-1
-          const amplitude = Math.min(1, rms * 3);
-
-          // Shift amplitudes left and add new value at the end
-          amplitudesRef.current.shift();
-          amplitudesRef.current.push(amplitude);
+      for (let i = 0; i < amplitudeRecords.length; i++) {
+        // const index = (i + recordIndex) % amplitudeRecords.length;
+        // const reversedIndex = amplitudeRecords.length - 1 - index;
+        const rms =
+          amplitudeRecords[(i + recordIndex) % amplitudeRecords.length] ?? null;
+        if (rms === null) {
+          continue;
         }
-
-        // Redraw all bars based on current amplitudes
-        const bars = barsRef.current;
-        const amplitudes = amplitudesRef.current;
-
-        for (let i = 0; i < bars.length; i++) {
-          const bar = bars[i];
-          const amplitude = amplitudes[i] ?? 0;
-
-          if (!bar) continue;
-
-          // Calculate bar height from amplitude, centered vertically
-          const barHeight = Math.max(MIN_BAR_HEIGHT, amplitude * maxBarHeight);
-
-          bar.clear();
-          bar.roundRect(0, centerY - barHeight / 2, BAR_WIDTH, barHeight, 1);
-          bar.fill(barColorRef.current);
+        const bar = bars[i] ?? null;
+        if (!bar) {
+          continue;
         }
-      });
-
-      app.start();
-    };
-
-    init();
+        const barHeight = Math.max(2, maxBarHeight * rms);
+        bar
+          .clear()
+          .roundRect(0, -barHeight / 2, barWidth, barHeight, barWidth)
+          .fill(barColor % MAX_COLOR);
+      }
+    });
 
     return () => {
-      isDestroyed = true;
-      if (appRef.current) {
-        appRef.current.destroy(true, {children: true});
-        appRef.current = null;
-      }
-      barsRef.current = [];
-      amplitudesRef.current = [];
+      removeTickCallback();
+      removeConstructCallback();
     };
-  }, [canvasWidth, canvasHeight, backgroundColor, analyserNodeRef]);
+  }, [
+    barColor,
+    onTick,
+    onConstruct,
+    backgroundColor,
+    analyserNodeRef,
+    canvasWidth,
+    canvasHeight
+  ]);
+
+  const containerDimensions = useMemo(
+    () => ({
+      width: canvasWidth,
+      height: canvasHeight
+    }),
+    [canvasWidth, canvasHeight]
+  );
 
   return (
     <div
-      ref={canvasContainerRef}
-      style={{width: canvasWidth, height: canvasHeight}}
+      ref={containerRef}
+      style={containerDimensions}
     />
   );
-}
+});

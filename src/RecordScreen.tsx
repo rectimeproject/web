@@ -9,13 +9,11 @@ import {
   lazy,
   Suspense
 } from "react";
-import useInterval from "./useInterval.js";
 import secondsToHumanReadable from "./secondsToHumanReadable.js";
 import useRecordings from "./useRecordings.js";
 import useRecorderContext from "./useRecorderContext.js";
 import useRecorderDatabase from "./useRecorderDatabase.js";
 import {CodecId} from "opus-codec-worker/actions/actions.js";
-import {RecorderStateType} from "./Recorder.js";
 import {filesize} from "filesize";
 import Icon from "./Icon.js";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
@@ -24,119 +22,49 @@ import useNavigatorStorage from "./useNavigatorStorage.js";
 import ActivityIndicator from "./ActivityIndicator.js";
 import useMediaDevices from "./useMediaDevices.js";
 import useAppSettings from "./useAppSettings.js";
-import useDebounce from "./useDebounce.js";
 import useRecordingNotes from "./useRecordingNotes.js";
-import useDebugAudioVisualizer from "./useDebugAudioVisualizer.js";
 import useTheme from "./useTheme.js";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {randomUUID} from "./lib/randomUUID.js";
+import {useDebounceCallback} from "usehooks-ts";
+import {useGetRecordingByEncoderId} from "./hooks/queries/useRecordingQuery.js";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
   () => import("./components/visualizer/TimelineVisualizer.js")
 );
 
-export default function RecordingListScreen() {
+export default function RecordScreen() {
   const theme = useTheme();
-  const recordings = useRecordings();
   const recorderContext = useRecorderContext();
   const db = useRecorderDatabase();
+  const [encoderId, setEncoderId] = useState<string | null>(null);
   const onStartRecording = useCallback(
     ({encoderId}: {encoderId: CodecId}) => {
-      db.getRecordingByEncoderId(encoderId);
+      setEncoderId(encoderId);
     },
-    [db]
+    [setEncoderId]
   );
-  const debugAudioVisualizer = useDebugAudioVisualizer();
+  const getRecordingByEncoderId = useGetRecordingByEncoderId(encoderId);
+  const recording = getRecordingByEncoderId.data ?? null;
   const mediaDevices = useMediaDevices();
   const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
-  const updateCurrentRecording = useCallback(() => {
-    if (recordings.recording !== null) {
-      db.getRecordingByEncoderId(recordings.recording.encoderId);
-    }
-  }, [db, recordings]);
   const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
     navigate("/recordings");
   }, [navigate]);
+  const recordings = useRecordings();
 
-  const recording =
-    db.recordings.find(r => r.encoderId === recordings.recording?.encoderId) ??
-    null;
   const [canvasContainerDimensions, setCanvasContainerDimensions] = useState<{
     width: number;
     height: number;
   } | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Use ResizeObserver to get actual dimensions after layout
-  useEffect(() => {
-    const element = canvasContainerRef.current;
-    console.log("[RecordScreen] ResizeObserver setup, element:", element);
-    if (!element) return;
-
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const {width, height} = entry.contentRect;
-        console.log("[RecordScreen] ResizeObserver fired:", width, height);
-        if (width > 0 && height > 0) {
-          setCanvasContainerDimensions({width, height});
-        }
-      }
-    });
-
-    resizeObserver.observe(element);
-    return () => resizeObserver.disconnect();
-  }, []);
-  useEffect(() => {
-    // if (!db.isGettingRecordings) {
-    //   db.getRecordings();
-    // }
-    recorderContext.recorder.then(recorder => {
-      if (recorder === null) {
-        return;
-      }
-      recorder.on("startRecording", onStartRecording);
-      const currentState = recorder.currentState();
-      switch (currentState.type) {
-        case RecorderStateType.Recording:
-          db.getRecordingByEncoderId(currentState.encoderId);
-          break;
-      }
-      return recorder;
-    });
-    return () => {
-      recorderContext.recorder.then(async recorder => {
-        if (recorder) {
-          recorder.off("startRecording", onStartRecording);
-        }
-      });
-    };
-  }, [recorderContext, onStartRecording, db]);
-
-  useEffect(() => {
-    return () => {
-      recorderContext.recorder.then(rec => rec?.stop());
-    };
-  }, [recorderContext]);
-  const {getMoreRecordings} = db;
-  useLayoutEffect(() => {
-    if (!recordingListScrollViewRef.current) {
-      return;
-    }
-    const {scrollHeight, clientHeight} = recordingListScrollViewRef.current;
-    if (scrollHeight === clientHeight) {
-      getMoreRecordings();
-    }
-  }, [getMoreRecordings]);
-  /**
-   * update current recording in case recording is happening
-   */
-  const checkRecordingInterval = useInterval(500);
   const recordingSizeOrQuota = useMemo(() => {
-    if (recording) {
+    if (recording !== null) {
       return recording.size;
     }
     if (
@@ -148,81 +76,91 @@ export default function RecordingListScreen() {
     return 0;
   }, [navigatorStorage, recording]);
   const [localBitrate, setLocalBitrate] = useState<number | null>(null);
+  /**
+   * if local bitrate changes, change current recording bitrate
+   */
+  const mutateBitrate = useDebounceCallback(() => {
+    if (
+      localBitrate === null ||
+      recording === null ||
+      recordings.setBitrate.isPending
+    ) {
+      return;
+    }
+    recordings.setBitrate.mutate({
+      encoderId: recording.encoderId,
+      newBitrate: localBitrate
+    });
+  }, 1000);
   const onChangeBitrate = useCallback<ChangeEventHandler<HTMLInputElement>>(
     e => {
       const newBitrate = e.target.valueAsNumber;
       if (
-        Number.isInteger(newBitrate) ||
-        !Number.isNaN(newBitrate) ||
+        !Number.isInteger(newBitrate) ||
+        Number.isNaN(newBitrate) ||
         !Number.isFinite(newBitrate)
       ) {
-        setLocalBitrate(newBitrate);
+        return;
       }
+      mutateBitrate();
+      setLocalBitrate(newBitrate);
     },
-    []
+    [mutateBitrate]
   );
-  /**
-   * if current recording bitrate changes, change local bitrate
-   */
-  const currentRecordingStateBitrate = recordings.recording?.bitrate ?? null;
-  useEffect(() => {
-    if (currentRecordingStateBitrate !== null) {
-      setLocalBitrate(currentRecordingStateBitrate);
-    }
-  }, [setLocalBitrate, currentRecordingStateBitrate]);
-  /**
-   * if local bitrate changes, change current recording bitrate
-   */
-  const debounce = useDebounce(1000);
-  useEffect(() => {
-    debounce.run(() => {
-      if (localBitrate !== null) {
-        recordings.setBitrate(localBitrate);
-      }
-    });
-  }, [localBitrate, debounce, recordings]);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const {audioContext} = recorderContext;
   const startRecording = useCallback(() => {
     const device =
       (deviceId === null
         ? mediaDevices.devices.find(d => d.deviceId === deviceId)
         : mediaDevices.devices[0]) ?? null;
 
-    recordings.startRecording({
-      device
-    });
-  }, [recordings, deviceId, mediaDevices]);
-  const appSettings = useAppSettings();
-  useEffect(() => {
-    if (appSettings.preferredDevice !== null) {
-      setDeviceId(appSettings.preferredDevice.deviceId);
-    } else {
-      appSettings.getPreferredDevice();
+    if (recordings.startRecording.isPending) {
+      return;
     }
-  }, [appSettings, setDeviceId]);
+
+    recordings.startRecording.mutate(
+      {
+        device
+      },
+      {
+        async onSuccess(data) {
+          const initialBitrate = data?.bitrate ?? null;
+          if (initialBitrate === null) {
+            return;
+          }
+          setLocalBitrate(initialBitrate);
+          await audioContext.resume();
+        }
+      }
+    );
+  }, [recordings, audioContext, deviceId, mediaDevices, setLocalBitrate]);
+  const stopRecording = useCallback(() => {
+    if (recordings.stopRecording.isPending) {
+      return;
+    }
+
+    recordings.stopRecording.mutate(void 0, {
+      onSuccess: async () => {
+        await audioContext.suspend();
+        setEncoderId(null);
+      }
+    });
+  }, [recordings, audioContext]);
+  const appSettings = useAppSettings();
   const onChangeDeviceId = useCallback<ChangeEventHandler<HTMLSelectElement>>(
     e => {
-      const device = mediaDevices.devices.find(
-        d => d.deviceId === e.target.value
-      );
-      if (device) {
-        setDeviceId(device.deviceId);
-        recordings.setMicrophone(device);
-        appSettings.setPreferredDevice(device);
+      const device =
+        mediaDevices.devices.find(d => d.deviceId === e.target.value) ?? null;
+      setDeviceId(device?.deviceId ?? null);
+      if (device === null) {
+        return;
       }
+      recordings.setMicrophone.mutate(device);
+      appSettings.setPreferredDevice.mutate({device});
     },
     [mediaDevices.devices, setDeviceId, appSettings, recordings]
   );
-  useEffect(() => {
-    checkRecordingInterval.setCallback(updateCurrentRecording);
-  }, [checkRecordingInterval, updateCurrentRecording]);
-  useEffect(() => {
-    if (recordings.isRecording) {
-      checkRecordingInterval.start();
-    } else {
-      checkRecordingInterval.stop();
-    }
-  }, [recordings.isRecording, checkRecordingInterval]);
   useEffect(() => {
     recorderContext.recorder.then(rec => {
       const state = rec?.currentState() ?? null;
@@ -252,6 +190,7 @@ export default function RecordingListScreen() {
   const recordingNotes = useRecordingNotes();
   const queryClient = useQueryClient();
 
+  const {getMoreRecordings} = db;
   // Fetch bookmarks using useQuery
   const {data: recordingBookmarks = []} = useQuery({
     queryKey: ["recordingBookmarks", recording?.id ?? null],
@@ -315,12 +254,77 @@ export default function RecordingListScreen() {
       setTimeout(() => setRecentBookmark(false), 500);
     }
   }, [recording, createBookmarkMutation]);
+
+  useEffect(() => {
+    const startRecordingCallback = onStartRecording;
+    const onEncodedCallback = async () => {
+      await getRecordingByEncoderId.refetch({cancelRefetch: true});
+    };
+    const pendingRecorder = recorderContext.recorder.then(recorder => {
+      if (recorder === null) {
+        return null;
+      }
+      recorder
+        .on("startRecording", startRecordingCallback)
+        .on("encoded", onEncodedCallback);
+      return recorder;
+    });
+    return () => {
+      pendingRecorder.then(async recorder => {
+        if (recorder === null) {
+          return;
+        }
+        recorder.off("startRecording", startRecordingCallback);
+        recorder.off("encoded", onEncodedCallback);
+      });
+    };
+  }, [
+    getRecordingByEncoderId,
+    recorderContext,
+    onStartRecording,
+    queryClient,
+    db
+  ]);
+
+  useEffect(() => {
+    return () => {
+      recorderContext.recorder.then(rec => rec?.stop());
+    };
+  }, [recorderContext]);
+  // Use ResizeObserver to get actual dimensions after layout
+  useEffect(() => {
+    const element = canvasContainerRef.current;
+    console.log("[RecordScreen] ResizeObserver setup, element:", element);
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const {width, height} = entry.contentRect;
+        console.log("[RecordScreen] ResizeObserver fired:", width, height);
+        if (width > 0 && height > 0) {
+          setCanvasContainerDimensions({width, height});
+        }
+      }
+    });
+
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    if (!recordingListScrollViewRef.current) {
+      return;
+    }
+    const {scrollHeight, clientHeight} = recordingListScrollViewRef.current;
+    if (scrollHeight === clientHeight) {
+      getMoreRecordings();
+    }
+  }, [getMoreRecordings]);
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-64px)] bg-white dark:bg-black overflow-hidden">
       {/* Visualizer Section - Full height with centered content */}
       <div className="flex-1 flex flex-col justify-center items-center px-4 py-8 md:px-6 relative overflow-hidden">
         <div
-          className="w-full max-w-300 h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg-apple overflow-hidden transition-all duration-300 relative hover:shadow-xl-apple hover:-translate-y-0.5"
+          className="w-full lg:max-w-300 h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg-apple overflow-hidden transition-all duration-300 relative hover:shadow-xl-apple hover:-translate-y-0.5"
           ref={canvasContainerRef}
         >
           {canvasContainerDimensions !== null ? (
@@ -356,8 +360,8 @@ export default function RecordingListScreen() {
       </div>
 
       {/* Control Bar - Bottom Fixed */}
-      <div className="px-4 py-5 sm:px-3 sm:py-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_16px_rgb(0_0_0/0.04)]">
-        <div className="max-w-300 mx-auto flex items-center justify-between gap-4 sm:gap-2">
+      <div className="flex lg:flex-row flex-col px-4 py-5 sm:px-3 sm:py-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_16px_rgb(0_0_0/0.04)]">
+        <div className="flex flex-col items-center lg:flex-row lg:max-w-300 mx-auto justify-between gap-4 sm:gap-2">
           {/* Left: Settings button */}
           <button
             className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center cursor-pointer transition-all duration-150 text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
@@ -370,16 +374,14 @@ export default function RecordingListScreen() {
           {/* Center: Record button */}
           <button
             className={`w-20 h-20 sm:w-17 sm:h-17 rounded-full ${recordings.isRecording ? "bg-linear-to-br from-orange-500 to-orange-400 animate-[pulse-recording_2s_ease-in-out_infinite]" : "bg-linear-to-br from-red-600 to-red-400"} border-0 shadow-lg-apple flex items-center justify-center cursor-pointer transition-all duration-200 text-white relative hover:scale-105 active:scale-98`}
-            onClick={
-              recordings.isRecording ? recordings.stopRecording : startRecording
-            }
+            onClick={recordings.isRecording ? stopRecording : startRecording}
             aria-label={
               recordings.isRecording ? "Stop recording" : "Start recording"
             }
           >
             <div className="flex items-center justify-center text-[2rem] sm:text-[1.5rem]">
-              {recordings.isStoppingToRecord ||
-              recordings.isStartingToRecord ? (
+              {recordings.stopRecording.isPending ||
+              recordings.startRecording.isPending ? (
                 <ActivityIndicator />
               ) : (
                 <Icon name={recordings.isRecording ? "stop" : "mic"} />
@@ -406,30 +408,6 @@ export default function RecordingListScreen() {
             >
               <Icon name="list" />
             </button>
-
-            {import.meta.env.DEV && (
-              <button
-                className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer transition-all duration-150 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 hover:scale-105 active:scale-95"
-                onClick={
-                  debugAudioVisualizer.isDebugging
-                    ? debugAudioVisualizer.stop
-                    : debugAudioVisualizer.start
-                }
-                aria-label={
-                  debugAudioVisualizer.isDebugging
-                    ? "Close debug visualizer"
-                    : "Open debug visualizer"
-                }
-              >
-                <Icon
-                  name={
-                    debugAudioVisualizer.isDebugging
-                      ? "close"
-                      : "remove_red_eye"
-                  }
-                />
-              </button>
-            )}
           </div>
         </div>
       </div>

@@ -57,15 +57,17 @@ export const useUpdateRecordingMutation = () => {
         );
       }
     },
-    onSettled: data => {
+    onSettled: async data => {
       // Refetch to ensure consistency
       if (data) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.recordings.detail(data.id)
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.recordings.lists()
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.recordings.detail(data.id)
+          }),
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.recordings.lists()
+          })
+        ]);
       }
     }
   });

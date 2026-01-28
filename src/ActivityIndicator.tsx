@@ -5,8 +5,7 @@ export default function ActivityIndicator(
     <svg
       xmlns="http://www.w3.org/2000/svg"
       style={{margin: "auto", background: "none"}}
-      // width="200"
-      // height="200"
+      width={50}
       viewBox="0 0 100 100"
       display="block"
       preserveAspectRatio="xMidYMid"

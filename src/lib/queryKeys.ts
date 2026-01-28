@@ -8,6 +8,8 @@
 export const queryKeys = {
   recordings: {
     all: ["recordings"] as const,
+    update: (id: string | null) =>
+      [...queryKeys.recordings.all, "update", id] as const,
     lists: () => [...queryKeys.recordings.all, "list"] as const,
     list: (filters?: {offset?: number; limit?: number}) =>
       [...queryKeys.recordings.lists(), filters] as const,
