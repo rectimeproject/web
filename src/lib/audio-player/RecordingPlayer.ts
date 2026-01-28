@@ -117,6 +117,9 @@ export class RecordingPlayer extends EventEmitter<{
 
     this.#setState(PlayerState.Preparing);
 
+    // Resume audio context if suspended (required for iOS Safari)
+    await this.#audioContext.resume();
+
     await using decoder = new Decoder(this.#opusClient);
 
     const recording = await this.#recorderDatabase.get(this.recordingId);

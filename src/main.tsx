@@ -1,3 +1,6 @@
+// Polyfills must be imported first
+import "./polyfills/explicit-resource-management.js";
+
 import "webrtc-adapter";
 import "./index.scss";
 import "./styles/global.css";
