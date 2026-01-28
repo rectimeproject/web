@@ -1,6 +1,6 @@
 {
   "name": "rectime-web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -50,7 +50,7 @@
     ]
   },
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
