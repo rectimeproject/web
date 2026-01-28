@@ -184,9 +184,6 @@ export class RecordingPlayer extends EventEmitter<{
 
     this.#audioPlayerContext = audioPlayerContext;
 
-    // Resume audio context if suspended
-    await this.#audioContext.resume();
-
     try {
       this.analyserNode.connect(this.#audioContext.destination);
       await this.#playInterval(

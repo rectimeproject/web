@@ -20,6 +20,8 @@ import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 import TimelineVisualizer from "./components/visualizer/TimelineVisualizer.js";
 import {useInterval} from "usehooks-ts";
 import RecordingTitleInput from "./RecordingTitleInput.js";
+import {useMutation} from "@tanstack/react-query";
+import useRecorderContext from "./useRecorderContext.js";
 
 // import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 // import {
@@ -124,6 +126,16 @@ export default memo(function RecordingDetailScreen() {
     refetch: refetchRecording
   } = useRecordingQuery(recordingIdOrNull);
 
+  const {audioContext} = useRecorderContext();
+  const resumeAudioContextMutation = useMutation({
+    mutationFn: async () => {
+      if (audioContext.state !== "running") {
+        await audioContext.resume();
+      }
+    },
+    mutationKey: ["resume-audio-context"]
+  });
+
   // const {data: recordingNotes, isLoading: isLoadingNotes} =
   //   useRecordingNotesQuery(recordingIdOrNull);
 
@@ -175,8 +187,11 @@ export default memo(function RecordingDetailScreen() {
       player.pause();
       return;
     }
+    if (!resumeAudioContextMutation.isPending) {
+      resumeAudioContextMutation.mutate();
+    }
     player.play(currentTime);
-  }, [player, currentTime]);
+  }, [player, currentTime, resumeAudioContextMutation]);
 
   const [visualizerDimensions, setVisualizerDimensions] = useState<{
     height: number;
