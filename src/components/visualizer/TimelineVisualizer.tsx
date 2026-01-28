@@ -215,14 +215,14 @@ export default memo(function TimelineVisualizer({
         barsContainer.addChild(bar);
       }
 
-      // Create and apply the glow filter to the bars container
+      // Create and apply the atmospheric glow filter to the bars container
       glowFilter = new TimelineGlowFilter({
         canvasSize: [canvasWidth, canvasHeight],
-        glowIntensity: 1.2,
-        glowRadius: 15.0,
-        baseColor: [1.0, 0.4, 0.1], // Orange base for fire
-        glowColor: [1.0, 0.2, 0.0], // Red-orange glow
-        flameIntensity: 1.0
+        glowIntensity: 0.8,
+        glowRadius: 10.0,
+        baseColor: [0.85, 0.85, 0.9], // Soft off-white
+        glowColor: [0.6, 0.7, 0.85], // Gentle blue tint
+        flameIntensity: 0.7
       });
       barsContainer.filters = [glowFilter];
 

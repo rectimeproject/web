@@ -44,18 +44,16 @@ uniform vec3 uGlowColor;
 uniform vec2 uCanvasSize;
 uniform float uFlameIntensity;
 
-// ============== NOISE FUNCTIONS ==============
+// ============== NOISE ==============
 
-// Simple hash function
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-// 2D noise
 float noise(vec2 p) {
     vec2 i = floor(p);
     vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f); // Smoothstep
+    f = f * f * (3.0 - 2.0 * f);
     
     float a = hash(i);
     float b = hash(i + vec2(1.0, 0.0));
@@ -65,77 +63,7 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// Fractal Brownian Motion for more organic fire
-float fbm(vec2 p, int octaves) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    float frequency = 1.0;
-    
-    for (int i = 0; i < 6; i++) {
-        if (i >= octaves) break;
-        value += amplitude * noise(p * frequency);
-        frequency *= 2.0;
-        amplitude *= 0.5;
-    }
-    
-    return value;
-}
-
-// ============== FLAME COLOR PALETTE ==============
-
-vec3 fireColor(float t, float intensity) {
-    // Fire gradient: black -> red -> orange -> yellow -> white
-    vec3 black = vec3(0.0, 0.0, 0.0);
-    vec3 darkRed = vec3(0.5, 0.0, 0.0);
-    vec3 red = vec3(1.0, 0.1, 0.0);
-    vec3 orange = vec3(1.0, 0.4, 0.0);
-    vec3 yellow = vec3(1.0, 0.8, 0.2);
-    vec3 white = vec3(1.0, 0.95, 0.8);
-    
-    // Boost colors with intensity
-    t = pow(t, mix(1.2, 0.8, intensity));
-    
-    vec3 color;
-    if (t < 0.2) {
-        color = mix(black, darkRed, t / 0.2);
-    } else if (t < 0.4) {
-        color = mix(darkRed, red, (t - 0.2) / 0.2);
-    } else if (t < 0.6) {
-        color = mix(red, orange, (t - 0.4) / 0.2);
-    } else if (t < 0.8) {
-        color = mix(orange, yellow, (t - 0.6) / 0.2);
-    } else {
-        color = mix(yellow, white, (t - 0.8) / 0.2);
-    }
-    
-    return color;
-}
-
-// Alternative: Electric/plasma flame colors
-vec3 plasmaColor(float t, float intensity) {
-    vec3 purple = vec3(0.3, 0.0, 0.5);
-    vec3 magenta = vec3(0.8, 0.1, 0.5);
-    vec3 pink = vec3(1.0, 0.3, 0.6);
-    vec3 cyan = vec3(0.3, 0.8, 1.0);
-    vec3 white = vec3(1.0, 0.95, 1.0);
-    
-    t = pow(t, mix(1.2, 0.7, intensity));
-    
-    vec3 color;
-    if (t < 0.25) {
-        color = mix(purple, magenta, t / 0.25);
-    } else if (t < 0.5) {
-        color = mix(magenta, pink, (t - 0.25) / 0.25);
-    } else if (t < 0.75) {
-        color = mix(pink, cyan, (t - 0.5) / 0.25);
-    } else {
-        color = mix(cyan, white, (t - 0.75) / 0.25);
-    }
-    
-    return color;
-}
-
-// ============== GLOW SAMPLING ==============
+// ============== SOFT GLOW ==============
 
 vec4 sampleGlow(vec2 uv, float radius) {
     vec4 sum = vec4(0.0);
@@ -145,7 +73,7 @@ vec4 sampleGlow(vec2 uv, float radius) {
         for (float y = -2.0; y <= 2.0; y += 1.0) {
             vec2 offset = vec2(x, y) * radius / uCanvasSize;
             float dist = length(vec2(x, y));
-            float weight = exp(-dist * dist * 0.15);
+            float weight = exp(-dist * dist * 0.2);
             sum += texture(uTexture, uv + offset) * weight;
             total += weight;
         }
@@ -154,155 +82,98 @@ vec4 sampleGlow(vec2 uv, float radius) {
     return sum / total;
 }
 
-// ============== MAIN SHADER ==============
+// ============== MAIN ==============
 
 void main() {
     vec2 uv = vTextureCoord;
     vec2 pixelCoord = uv * uCanvasSize;
     
-    // Sample original texture
     vec4 original = texture(uTexture, uv);
     
-    // If no bar content, handle glow/background
+    // ============== ATMOSPHERIC GLOW FOR EMPTY AREAS ==============
+    
     if (original.a < 0.01) {
-        // Sample glow from nearby bars
-        float glowRadius = uGlowRadius * (1.0 + uAmplitude * 2.0);
+        float glowRadius = uGlowRadius * (1.0 + uAmplitude * 0.5);
         vec4 glow = sampleGlow(uv, glowRadius);
         
         if (glow.a > 0.01) {
-            // Add fire glow in transparent areas
-            float glowStrength = smoothstep(0.0, 0.4, glow.a) * uGlowIntensity;
+            // Soft, diffused glow
+            float glowStrength = smoothstep(0.0, 0.5, glow.a) * uGlowIntensity * 0.6;
             
-            // Animated glow noise
-            float glowNoise = fbm(pixelCoord * 0.02 + vec2(0.0, -uTime * 60.0), 3);
-            glowStrength *= (0.7 + glowNoise * 0.6);
+            // Gentle breathing motion
+            float breath = sin(uTime * 1.5) * 0.5 + 0.5;
+            glowStrength *= (0.85 + breath * 0.15 * uAmplitude);
             
-            vec3 glowColor = fireColor(glowStrength * (0.3 + uAmplitude * 0.5), uAmplitude);
+            // Subtle floating particles
+            float particleNoise = noise(pixelCoord * 0.03 + vec2(uTime * 8.0, uTime * 5.0));
+            float particles = pow(particleNoise, 6.0) * uAmplitude * 0.4;
             
-            // Mix with plasma colors based on amplitude for variety
-            vec3 plasmaGlow = plasmaColor(glowStrength * 0.5, uAmplitude);
-            glowColor = mix(glowColor, plasmaGlow, uAmplitude * 0.3);
+            // Use the glow color directly - no gradient
+            vec3 glowCol = uGlowColor * glowStrength;
+            glowCol += uBaseColor * particles;
             
-            finalColor = vec4(glowColor * glowStrength * 1.5, glowStrength * 0.8);
+            finalColor = vec4(glowCol, glowStrength * 0.5);
         } else {
             finalColor = vec4(0.0);
         }
         return;
     }
     
-    // ============== FLAME EFFECT ON BARS ==============
+    // ============== BAR EFFECTS ==============
     
-    // Get position relative to bar (0 = bottom, 1 = top of bar content)
-    // We need to figure out local Y position within the bar
-    // Since bars are centered, we work with screen coordinates
+    // Gentle shimmer across the bars
+    float shimmerSpeed = 2.0;
+    float shimmer = noise(vec2(pixelCoord.x * 0.02 + uTime * shimmerSpeed, pixelCoord.y * 0.05));
+    shimmer = smoothstep(0.4, 0.6, shimmer);
     
+    // Soft edge glow - bars glow slightly at edges
+    vec2 texelSize = 1.0 / uCanvasSize;
+    float edgeL = texture(uTexture, uv - vec2(texelSize.x * 2.0, 0.0)).a;
+    float edgeR = texture(uTexture, uv + vec2(texelSize.x * 2.0, 0.0)).a;
+    float edgeT = texture(uTexture, uv - vec2(0.0, texelSize.y * 2.0)).a;
+    float edgeB = texture(uTexture, uv + vec2(0.0, texelSize.y * 2.0)).a;
+    float edge = (4.0 - edgeL - edgeR - edgeT - edgeB) * 0.25;
+    edge = max(0.0, edge);
+    
+    // Breathing pulse synced to amplitude
+    float pulse = sin(uTime * 2.5 + pixelCoord.x * 0.01) * 0.5 + 0.5;
+    float breathIntensity = 0.92 + pulse * 0.08 * (0.5 + uAmplitude * 0.5);
+    
+    // Start with the base color
+    vec3 barColor = uBaseColor;
+    
+    // Add subtle shimmer highlights
+    barColor += uGlowColor * shimmer * 0.15 * uFlameIntensity;
+    
+    // Soft inner glow at edges
+    barColor += uGlowColor * edge * 0.3 * (0.5 + uAmplitude * 0.5) * uFlameIntensity;
+    
+    // Apply breathing
+    barColor *= breathIntensity;
+    
+    // Subtle luminosity variation based on amplitude
+    float luminosity = 1.0 + uAmplitude * 0.2;
+    barColor *= luminosity;
+    
+    // ============== FLOATING LIGHT MOTES ==============
+    
+    // Tiny floating particles that drift across bars
+    float moteNoise1 = noise(pixelCoord * 0.015 + vec2(uTime * 12.0, uTime * 8.0));
+    float moteNoise2 = noise(pixelCoord * 0.025 + vec2(-uTime * 10.0, uTime * 6.0));
+    float motes = pow(moteNoise1 * moteNoise2, 4.0) * uAmplitude * 2.0;
+    
+    // Add motes as bright spots (use glow color)
+    barColor += uGlowColor * motes * uFlameIntensity;
+    
+    // ============== SOFT AMBIENT OCCLUSION ==============
+    
+    // Darken slightly toward bar edges for depth
     float centerY = uCanvasSize.y * 0.5;
-    float distFromCenter = abs(pixelCoord.y - centerY);
-    float maxBarHeight = uCanvasSize.y * 0.4; // 80% total, so 40% each direction
+    float distFromCenter = abs(pixelCoord.y - centerY) / (uCanvasSize.y * 0.4);
+    float ao = 1.0 - distFromCenter * 0.1;
+    barColor *= ao;
     
-    // Normalized height (0 at center/base, 1 at tips)
-    float normalizedHeight = clamp(distFromCenter / maxBarHeight, 0.0, 1.0);
-    
-    // Flip so flames rise upward (or both directions from center)
-    float flameProgress = normalizedHeight;
-    
-    // ============== PROCEDURAL FLAME NOISE ==============
-    
-    // Multiple noise layers for turbulent flames
-    float timeScale = uTime * (1.5 + uAmplitude * 2.0);
-    
-    // Base turbulence - large scale movement
-    vec2 turbulenceCoord = pixelCoord * 0.015;
-    turbulenceCoord.y -= timeScale * 40.0; // Flames rise upward
-    float turbulence1 = fbm(turbulenceCoord, 4);
-    
-    // Fine detail - small flickering
-    vec2 detailCoord = pixelCoord * 0.04;
-    detailCoord.y -= timeScale * 80.0;
-    float turbulence2 = fbm(detailCoord + vec2(uTime * 10.0, 0.0), 3);
-    
-    // Edge distortion - makes flame edges wavy
-    vec2 edgeCoord = pixelCoord * 0.025;
-    edgeCoord.y -= timeScale * 50.0;
-    float edgeNoise = fbm(edgeCoord, 5);
-    
-    // Combine turbulence
-    float combinedTurbulence = turbulence1 * 0.6 + turbulence2 * 0.4;
-    
-    // ============== FLAME SHAPE ==============
-    
-    // Flame intensity decreases toward tips
-    float flameBase = 1.0 - pow(flameProgress, 1.5);
-    
-    // Add turbulence to create flickering edges
-    float flameMask = flameBase + (combinedTurbulence - 0.5) * 0.4 * (1.0 + uAmplitude);
-    
-    // Sharpen the flame edges
-    flameMask = smoothstep(0.1, 0.5, flameMask);
-    
-    // Boost flame with amplitude
-    flameMask *= (0.7 + uAmplitude * 0.6);
-    
-    // ============== FLAME COLORING ==============
-    
-    // Color based on position and turbulence
-    float colorIndex = flameBase * 0.7 + combinedTurbulence * 0.3;
-    colorIndex = clamp(colorIndex, 0.0, 1.0);
-    
-    // Hot core at center, cooler at edges
-    float coreHeat = 1.0 - normalizedHeight * 0.5;
-    colorIndex *= coreHeat;
-    
-    // Get flame color
-    vec3 flameCol = fireColor(colorIndex, uAmplitude);
-    
-    // Add electric/plasma tints at high amplitude
-    if (uAmplitude > 0.3) {
-        vec3 plasmaCol = plasmaColor(colorIndex * 0.8 + turbulence2 * 0.2, uAmplitude);
-        float plasmaBlend = (uAmplitude - 0.3) / 0.7;
-        // Subtle plasma hints
-        flameCol = mix(flameCol, plasmaCol, plasmaBlend * 0.25 * turbulence1);
-    }
-    
-    // ============== EMBERS / SPARKS ==============
-    
-    float sparkNoise = noise(pixelCoord * 0.1 + vec2(uTime * 20.0, -uTime * 100.0));
-    float sparks = pow(sparkNoise, 8.0) * flameProgress * uAmplitude * 3.0;
-    vec3 sparkColor = vec3(1.0, 0.9, 0.5); // Bright yellow-white sparks
-    
-    // ============== COMBINE EFFECTS ==============
-    
-    // Base bar with flame overlay
-    vec3 result = original.rgb;
-    
-    // Apply flame color
-    result = mix(result, flameCol, flameMask * uFlameIntensity);
-    
-    // Add bright core
-    float coreIntensity = pow(1.0 - normalizedHeight, 3.0) * (0.5 + uAmplitude * 0.5);
-    result += vec3(1.0, 0.8, 0.3) * coreIntensity * 0.3 * uFlameIntensity;
-    
-    // Add sparks
-    result += sparkColor * sparks * uFlameIntensity;
-    
-    // Add subtle pulsing glow
-    float pulse = sin(uTime * 4.0 + pixelCoord.x * 0.05) * 0.5 + 0.5;
-    result *= 1.0 + pulse * 0.1 * uAmplitude;
-    
-    // ============== CHROMATIC ABERRATION ==============
-    
-    if (uAmplitude > 0.5) {
-        float aberration = (uAmplitude - 0.5) * 0.005;
-        float r = texture(uTexture, uv + vec2(aberration, 0.0)).a;
-        float b = texture(uTexture, uv - vec2(aberration, 0.0)).a;
-        result.r += r * 0.1 * (uAmplitude - 0.5);
-        result.b += b * 0.05 * (uAmplitude - 0.5);
-    }
-    
-    // ============== OUTPUT ==============
-    
-    // Ensure we preserve alpha for proper blending
-    finalColor = vec4(result, original.a);
+    finalColor = vec4(barColor, original.a);
 }
 `;
 
