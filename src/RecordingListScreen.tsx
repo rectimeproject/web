@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo} from "react";
+import {useCallback, useEffect} from "react";
 import {Link} from "react-router-dom";
 import ActivityIndicator from "./ActivityIndicator.js";
 import {useRecordingsInfiniteQuery} from "./hooks/queries/useRecordingsInfiniteQuery.js";
@@ -6,8 +6,8 @@ import Button from "./components/ui/Button.js";
 import RecordingListScreenItem from "./RecordingListScreenItem.js";
 
 export default function RecordingListScreen() {
+  const recordingsInfiniteQuery = useRecordingsInfiniteQuery(10);
   const {
-    data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -15,12 +15,7 @@ export default function RecordingListScreen() {
     isError,
     error,
     refetch
-  } = useRecordingsInfiniteQuery(10);
-
-  const recordings = useMemo(
-    () => data?.pages.flatMap(page => page.recordings) ?? [],
-    [data]
-  );
+  } = recordingsInfiniteQuery;
 
   const onScroll = useCallback(() => {
     if (!document.scrollingElement || !hasNextPage || isFetchingNextPage) {
@@ -63,7 +58,13 @@ export default function RecordingListScreen() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center my-8">
           <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
-            Failed to load recordings: {error?.message ?? "Unknown error"}
+            Failed to load recordings:{" "}
+            {typeof error === "object" &&
+            error !== null &&
+            "message" in error &&
+            typeof error["message"] === "string"
+              ? error["message"]
+              : "Unknown error"}
           </div>
           <Button onClick={() => refetch()}>Retry</Button>
         </div>
@@ -73,7 +74,7 @@ export default function RecordingListScreen() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
-      {!recordings.length ? (
+      {!recordingsInfiniteQuery.data?.pages.length ? (
         <div className="text-center text-gray-600 dark:text-gray-400">
           No recordings yet.{" "}
           <Link
@@ -86,12 +87,14 @@ export default function RecordingListScreen() {
         </div>
       ) : (
         <>
-          {recordings.map(r => (
-            <RecordingListScreenItem
-              key={r.id}
-              recording={r}
-            />
-          ))}
+          {recordingsInfiniteQuery.data.pages.map(page =>
+            page.recordings.map(recording => (
+              <RecordingListScreenItem
+                key={recording.id}
+                recording={recording}
+              />
+            ))
+          )}
           {isFetchingNextPage ? (
             <div className="text-center my-8">
               <ActivityIndicator />
