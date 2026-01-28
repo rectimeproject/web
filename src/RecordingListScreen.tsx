@@ -17,10 +17,10 @@ export default function RecordingListScreen() {
     refetch
   } = useRecordingsInfiniteQuery(10);
 
-  const recordings = useMemo(() => {
-    if (!data) return [];
-    return data.pages.flatMap(page => page.recordings);
-  }, [data]);
+  const recordings = useMemo(
+    () => data.pages.flatMap(page => page.recordings),
+    [data]
+  );
 
   const onScroll = useCallback(() => {
     if (!document.scrollingElement || !hasNextPage || isFetchingNextPage) {

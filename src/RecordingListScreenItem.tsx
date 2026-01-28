@@ -71,7 +71,7 @@ export default memo(function RecordingListScreenItem({
   return (
     <div
       className={clsx(
-        "lg:flex-row",
+        "md:flex-row",
         "flex-col",
         "flex",
         "items-center",
