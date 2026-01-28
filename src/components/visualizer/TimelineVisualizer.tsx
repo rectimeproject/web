@@ -1,6 +1,7 @@
 import {Container, Graphics, Ticker} from "pixi.js";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
+import {TimelineGlowFilter} from "./TimelineGlowFilter.js";
 
 import {memo} from "react";
 
@@ -160,6 +161,8 @@ export default memo(function TimelineVisualizer({
 
   useEffect(() => {
     const bars = new Array<Graphics>();
+    let glowFilter: TimelineGlowFilter | null = null;
+    let barsContainer: Container | null = null;
 
     const calculateBarDimensions = ({barCount}: {barCount: number}) => {
       const realBarWidth = Math.floor(canvasWidth / barCount);
@@ -195,14 +198,34 @@ export default memo(function TimelineVisualizer({
           .fill(backgroundColor)
       );
 
+      // Create a separate container for the bars to apply the filter
+      barsContainer = new Container({
+        x: 0,
+        y: 0,
+        width: canvasWidth,
+        height: canvasHeight
+      });
+
       for (let i = 0; i < barCount; i++) {
         const bar = new Graphics({
           x: i * (barWidth + barGap),
           y: canvasHeight / 2
         });
         bars.push(bar);
-        container.addChild(bar);
+        barsContainer.addChild(bar);
       }
+
+      // Create and apply the glow filter to the bars container
+      glowFilter = new TimelineGlowFilter({
+        canvasSize: [canvasWidth, canvasHeight],
+        glowIntensity: 1.0,
+        glowRadius: 12.0,
+        baseColor: [0.15, 0.5, 0.85], // Cyan base
+        glowColor: [0.85, 0.25, 0.65] // Magenta glow
+      });
+      barsContainer.filters = [glowFilter];
+
+      container.addChild(barsContainer);
       stage.addChild(container);
     });
 
@@ -210,8 +233,9 @@ export default memo(function TimelineVisualizer({
     let recordIndex = 0;
     const MAX_COLOR = 2 ** 24 - 1;
     let timeDomainData: Float32Array | null = null;
+    let elapsedTime = 0;
 
-    const removeTickCallback = onTick(() => {
+    const removeTickCallback = onTick(ticker => {
       const analyserNode = analyserNodeRef.current;
       if (analyserNode === null) {
         return;
@@ -223,13 +247,19 @@ export default memo(function TimelineVisualizer({
 
       analyserNode.getFloatTimeDomainData(timeDomainData);
 
+      const rms = calculateRMS(timeDomainData);
+      const currentAmplitude = Math.min(rms * 4.0, 1.0);
+
       {
-        const rms = calculateRMS(timeDomainData);
-        amplitudeRecords[recordIndex % amplitudeRecords.length] = Math.min(
-          rms * 4.0,
-          1.0
-        );
+        amplitudeRecords[recordIndex % amplitudeRecords.length] =
+          currentAmplitude;
         recordIndex++;
+      }
+
+      // Update the glow filter with current amplitude and time
+      if (glowFilter) {
+        elapsedTime += ticker.deltaMS;
+        glowFilter.update(ticker.deltaMS, currentAmplitude);
       }
 
       const maxBarHeight = canvasHeight * 0.8;
