@@ -21,10 +21,6 @@ export const useRecordingsInfiniteQuery = (limit = 10) => {
           recordings && recordings.length === limit ? pageParam + limit : null
       };
     },
-    initialData: {
-      pages: [],
-      pageParams: []
-    },
     getNextPageParam: lastPage => lastPage.nextOffset,
     initialPageParam: 0
   });

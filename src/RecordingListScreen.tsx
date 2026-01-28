@@ -18,7 +18,7 @@ export default function RecordingListScreen() {
   } = useRecordingsInfiniteQuery(10);
 
   const recordings = useMemo(
-    () => data.pages.flatMap(page => page.recordings),
+    () => data?.pages.flatMap(page => page.recordings) ?? [],
     [data]
   );
 

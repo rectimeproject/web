@@ -11,6 +11,14 @@ import Decoder from "../opus/Decoder.js";
 import {EventEmitter} from "eventual-js";
 import type Client from "opus-codec-worker/actions/Client.js";
 
+interface IPlannedPart {
+  part: IRecordingPartV1;
+  /**
+   * Position of the part in seconds relative to the start of the recording
+   */
+  delta: number;
+}
+
 interface IAudioPlayerContext {
   id: number;
   recording: RecordingV1;
@@ -133,7 +141,7 @@ export class RecordingPlayer extends EventEmitter<{
 
     const playbackId = this.#playbackId++;
 
-    const maximumScheduledPlayedRatio = 0.5;
+    const maximumScheduledPlayedRatio = 0.25;
 
     const audioPlayerContext: IAudioPlayerContext = {
       id: playbackId,
@@ -216,13 +224,7 @@ export class RecordingPlayer extends EventEmitter<{
       return;
     }
 
-    const plannedParts = new Array<{
-      part: IRecordingPartV1;
-      /**
-       * Position of the part in seconds relative to the start of the recording
-       */
-      delta: number;
-    }>();
+    const plannedParts = new Array<IPlannedPart>();
     let processedDuration = 0;
 
     const {signal} = audioPlayerContext.abortController;
@@ -246,33 +248,36 @@ export class RecordingPlayer extends EventEmitter<{
       processedDuration += partDuration;
     }
 
-    const connectedParts = new Array<{
-      audioBufferSourceNode: IAudioBufferSourceNode<IAudioContext>;
-      delta: number;
-      duration: number;
-    }>();
+    const connectedParts = new Array<
+      Promise<{
+        audioBufferSourceNode: IAudioBufferSourceNode<IAudioContext>;
+        delta: number;
+        duration: number;
+      }>
+    >();
 
     for (const {part, delta} of plannedParts) {
       signal.throwIfAborted();
 
-      connectedParts.push({
-        duration:
-          part.sampleCount /
-          audioPlayerContext.recording.channels /
-          audioPlayerContext.recording.sampleRate,
-        audioBufferSourceNode: await this.#prepareAudioBufferSourceNode(
-          part,
-          audioPlayerContext
-        ),
-        delta
-      });
+      connectedParts.push(
+        this.#prepareAudioBufferSourceNode(part, audioPlayerContext).then(
+          async audioBufferSourceNode => ({
+            duration:
+              part.sampleCount /
+              audioPlayerContext.recording.channels /
+              audioPlayerContext.recording.sampleRate,
+            audioBufferSourceNode,
+            delta
+          })
+        )
+      );
     }
 
     this.#setState(PlayerState.Playing);
 
     let pending = Promise.resolve();
 
-    for (const part of connectedParts) {
+    for (const part of await Promise.all(connectedParts)) {
       signal.throwIfAborted();
 
       const {audioBufferSourceNode, duration} = part;

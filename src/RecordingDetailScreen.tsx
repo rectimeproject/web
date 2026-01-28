@@ -1,4 +1,4 @@
-import {useParams} from "react-router";
+import {useLocation, useNavigate, useParams} from "react-router";
 import {
   useCallback,
   useMemo,
@@ -17,6 +17,9 @@ import Icon from "./Icon.js";
 import {filesize} from "filesize";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
+import TimelineVisualizer from "./components/visualizer/TimelineVisualizer.js";
+import {useInterval} from "usehooks-ts";
+import RecordingTitleInput from "./RecordingTitleInput.js";
 
 // import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 // import {
@@ -42,15 +45,56 @@ function RecordingDetailBlock({
   );
 }
 
-export default memo(function RecordingDetailScreen() {
+function useRecordingDetailAudioTimestamp() {
   const {recordingId} = useParams();
-  const [currentTime, setCurrentTime] = useState<number>(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const duration = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const t = searchParams.get("t");
+    if (!t) {
+      return null;
+    }
+    const parsed = parseInt(t, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      return null;
+    }
+    return parsed;
+  }, [location.search]);
+
+  const update = useCallback(
+    (duration: number) => {
+      const url = new URL(window.location.href);
+      if (recordingId) {
+        url.pathname = `/recording/${recordingId}`;
+      }
+      url.searchParams.set("t", Math.floor(duration).toString());
+      navigate(url.pathname + url.search, {replace: true});
+    },
+    [navigate, recordingId]
+  );
+
+  return [duration, update] as const;
+}
+
+export default memo(function RecordingDetailScreen() {
+  const [cachedDuration, setCachedDuration] =
+    useRecordingDetailAudioTimestamp();
+
+  const {recordingId} = useParams();
+  const [currentTime, setCurrentTime] = useState<number>(cachedDuration ?? 0);
   const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
+
   const player = useRecordingPlayer({
     recordingId: recordingId ?? null,
     analyserNodeRef,
     setCurrentTime
   });
+
+  useInterval(() => {
+    setCachedDuration(currentTime);
+  }, 2000);
 
   // Convert undefined to null for explicit null handling
   const recordingIdOrNull = recordingId ?? null;
@@ -134,6 +178,22 @@ export default memo(function RecordingDetailScreen() {
     player.play(currentTime);
   }, [player, currentTime]);
 
+  const [visualizerDimensions, setVisualizerDimensions] = useState<{
+    height: number;
+    width: number;
+  } | null>(null);
+
+  const onVisualizerMounted = useCallback((el: HTMLDivElement | null) => {
+    if (el === null) {
+      return;
+    }
+
+    setVisualizerDimensions({
+      height: el.clientHeight,
+      width: el.clientWidth
+    });
+  }, []);
+
   // Loading state
   if (isLoadingRecording) {
     return (
@@ -182,8 +242,25 @@ export default memo(function RecordingDetailScreen() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
+    <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col gap-4">
+      <RecordingTitleInput recording={recording} />
+
       {/* Hero Section with Visualizer */}
+      <div
+        className="w-full h-48"
+        ref={onVisualizerMounted}
+      >
+        {visualizerDimensions === null ? null : (
+          <TimelineVisualizer
+            barColor={0x000000}
+            backgroundColor={0xffffff}
+            analyserNodeRef={analyserNodeRef}
+            canvasHeight={visualizerDimensions.height}
+            canvasWidth={visualizerDimensions.width}
+          />
+        )}
+      </div>
+
       <div className="mb-8">
         {/* Visualizer Container with Play Button */}
         <div className="relative bg-gray-50 dark:bg-gray-900 rounded-3xl shadow-lg overflow-hidden mb-6">
@@ -219,14 +296,7 @@ export default memo(function RecordingDetailScreen() {
           <RecordingDetailBlock title={"Duration"}>
             {secondsToHumanReadable(recording.duration / 1000)}
           </RecordingDetailBlock>
-          {/* <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-lg transition-all duration-150">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Size
-            </div>
-            <div className="text-lg font-semibold font-mono">
-              {humanReadableRecordingSize}
-            </div>
-          </div> */}
+
           <RecordingDetailBlock title={"Size"}>
             {humanReadableRecordingSize}
           </RecordingDetailBlock>
