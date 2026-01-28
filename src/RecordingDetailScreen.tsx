@@ -7,7 +7,8 @@ import {
   memo,
   ChangeEventHandler,
   useRef,
-  PropsWithChildren
+  PropsWithChildren,
+  lazy
 } from "react";
 import useRecordingPlayer from "./useRecordingPlayer.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -17,7 +18,6 @@ import Icon from "./Icon.js";
 import {filesize} from "filesize";
 import {useRecordingQuery} from "./hooks/queries/useRecordingQuery.js";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
-import TimelineVisualizer from "./components/visualizer/TimelineVisualizer.js";
 import {useInterval} from "usehooks-ts";
 import RecordingTitleInput from "./RecordingTitleInput.js";
 import {useMutation} from "@tanstack/react-query";
@@ -28,6 +28,10 @@ import useRecorderContext from "./useRecorderContext.js";
 //   useUpdateRecordingNoteMutation,
 //   useDeleteRecordingNoteMutation
 // } from "./hooks/queries/useRecordingNotesMutations";
+
+const TimelineVisualizer = lazy(
+  () => import("./components/visualizer/TimelineVisualizer.js")
+);
 
 function RecordingDetailBlock({
   title,
@@ -265,15 +269,17 @@ export default memo(function RecordingDetailScreen() {
         className="w-full h-48"
         ref={onVisualizerMounted}
       >
-        {visualizerDimensions === null ? null : (
-          <TimelineVisualizer
-            barColor={0x000000}
-            backgroundColor={0xffffff}
-            analyserNodeRef={analyserNodeRef}
-            canvasHeight={visualizerDimensions.height}
-            canvasWidth={visualizerDimensions.width}
-          />
-        )}
+        <Suspense fallback={<ActivityIndicator />}>
+          {visualizerDimensions === null ? null : (
+            <TimelineVisualizer
+              barColor={0x000000}
+              backgroundColor={0xffffff}
+              analyserNodeRef={analyserNodeRef}
+              canvasHeight={visualizerDimensions.height}
+              canvasWidth={visualizerDimensions.width}
+            />
+          )}
+        </Suspense>
       </div>
 
       <div className="mb-8">
