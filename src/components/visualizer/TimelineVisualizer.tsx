@@ -154,7 +154,7 @@ export default memo(function TimelineVisualizer({
   barColor: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const {onTick, onConstruct} = useInitPixiApplication({
+  const {onTick, onConstruct} = usePixiApplication({
     containerRef
   });
 
