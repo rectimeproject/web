@@ -113,6 +113,10 @@ export default class Recorder extends EventEmitter<{
     FRAME_SIZE_5_MS: 5,
     FRAME_SIZE_2_5_MS: 2.5
   };
+  readonly #channelCount = 1;
+  readonly #mediaTrackConstraints: MediaTrackConstraints = {
+    channelCount: {exact: this.#channelCount, ideal: this.#channelCount}
+  };
   #currentState: RecorderState;
   public constructor(audioContext: IAudioContext, opus: Opus) {
     super({
@@ -160,6 +164,7 @@ export default class Recorder extends EventEmitter<{
         try {
           newStream = await navigator.mediaDevices.getUserMedia({
             audio: {
+              ...this.#mediaTrackConstraints,
               deviceId: device.deviceId,
               groupId: device.groupId
             }
@@ -226,6 +231,7 @@ export default class Recorder extends EventEmitter<{
       mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: device
           ? {
+              ...this.#mediaTrackConstraints,
               deviceId: device.deviceId,
               groupId: device.groupId
             }
@@ -247,7 +253,7 @@ export default class Recorder extends EventEmitter<{
       createEncoder({
         sampleRate: this.#audioContext.sampleRate,
         application: opus.constants.OPUS_APPLICATION_VOIP,
-        channels: 1,
+        channels: this.#channelCount,
         pcmBufferLength: frameSize * Float32Array.BYTES_PER_ELEMENT,
         outBufferLength: maxDataBytes
       })
@@ -286,7 +292,7 @@ export default class Recorder extends EventEmitter<{
     this.emit("startRecording", {
       encoderId: encoderId.value,
       sampleRate: this.#audioContext.sampleRate,
-      channels: 1,
+      channels: this.#channelCount,
       frameSize
     });
     const workletNode = new AudioWorkletNode(
@@ -295,7 +301,7 @@ export default class Recorder extends EventEmitter<{
       {
         parameterData: {
           frameSize,
-          channelCount: 2,
+          channelCount: this.#channelCount,
           queueFrameCount: 1
         }
       }
@@ -344,7 +350,6 @@ export default class Recorder extends EventEmitter<{
     const onReceiveSamples = (e: MessageEvent) => {
       const channels: Float32Array<ArrayBuffer>[] = e.data.samples;
 
-      // TODO: Add support for stereo
       const [samples = null] = channels;
 
       if (samples === null) {
