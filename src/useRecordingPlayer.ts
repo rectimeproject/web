@@ -1,11 +1,4 @@
-import {
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import useRecorderContext from "./useRecorderContext.js";
 import {useRecorderDatabaseContext} from "./RecorderDatabaseContext.js";
 import {RecordingPlayer} from "./lib/audio-player/RecordingPlayer.js";
@@ -18,11 +11,13 @@ export interface IImmutablePlayingState {
 
 export default function useRecordingPlayer({
   recordingId,
-  analyserNodeRef,
+  onUpdate,
   setCurrentTime
 }: {
   recordingId: string | null;
-  analyserNodeRef: RefObject<IAnalyserNode<IAudioContext> | null>;
+  onUpdate: (state: {
+    analyserNode: IAnalyserNode<IAudioContext> | null;
+  }) => void;
   setCurrentTime?: (currentTime: number) => void;
 }) {
   const recorderContext = useRecorderContext();
@@ -31,12 +26,13 @@ export default function useRecordingPlayer({
   const [playing, setPlaying] = useState<boolean>(false);
 
   const pause = useCallback(() => {
+    onUpdate({analyserNode: null});
     if (playerRef.current === null) {
       return;
     }
     playerRef.current.destroy();
     playerRef.current = null;
-  }, []);
+  }, [onUpdate]);
   const play = useCallback(
     (currentTime: number) => {
       if (playerRef.current === null && recordingId !== null) {
@@ -47,7 +43,7 @@ export default function useRecordingPlayer({
           recordingId
         });
         playerRef.current = player;
-        analyserNodeRef.current = player.analyserNode;
+        onUpdate({analyserNode: player.analyserNode});
         player.on("state", state => {
           setPlaying(state === "playing");
         });
@@ -57,13 +53,7 @@ export default function useRecordingPlayer({
       }
       playerRef.current?.play(currentTime);
     },
-    [
-      recordingId,
-      recorderContext,
-      recorderDatabase,
-      setCurrentTime,
-      analyserNodeRef
-    ]
+    [recordingId, recorderContext, recorderDatabase, setCurrentTime, onUpdate]
   );
   const seek = useCallback((newDuration: number) => {
     if (playerRef.current === null) {

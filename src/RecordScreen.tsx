@@ -16,7 +16,6 @@ import useRecorderDatabase from "./useRecorderDatabase.js";
 import {CodecId} from "opus-codec-worker/actions/actions.js";
 import {filesize} from "filesize";
 import Icon from "./Icon.js";
-import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -29,6 +28,7 @@ import {randomUUID} from "./lib/randomUUID.js";
 import {useDebounceCallback} from "usehooks-ts";
 import {useGetRecordingByEncoderId} from "./hooks/queries/useRecordingQuery.js";
 import clsx from "clsx";
+import {IRecordingTimelineState} from "./components/visualizer/TimelineVisualizer.js";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
@@ -50,7 +50,9 @@ export default function RecordScreen() {
   const recording = getRecordingByEncoderId.data ?? null;
   const mediaDevices = useMediaDevices();
   const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
-  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
+  const visualizerState = useRef<IRecordingTimelineState>({
+    analyserNode: null
+  });
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
@@ -173,11 +175,11 @@ export default function RecordScreen() {
       );
 
       if (state === null || !("analyserNode" in state) || !state.analyserNode) {
-        analyserNodeRef.current = null;
+        visualizerState.current.analyserNode = null;
         return;
       }
       console.log("[RecordScreen] Setting analyserNode from recorder state");
-      analyserNodeRef.current = state.analyserNode;
+      visualizerState.current.analyserNode = state.analyserNode;
     });
   }, [recordings.isRecording, recordings.recording, recorderContext]);
   /**
@@ -369,7 +371,7 @@ export default function RecordScreen() {
               <TimelineVisualizer
                 canvasWidth={canvasContainerDimensions.width}
                 canvasHeight={canvasContainerDimensions.height}
-                analyserNodeRef={analyserNodeRef}
+                mutableStateRef={visualizerState}
                 backgroundColor={theme.colors.background}
                 barColor={theme.colors.barColor}
               />

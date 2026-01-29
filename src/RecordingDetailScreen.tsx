@@ -23,6 +23,7 @@ import RecordingTitleInput from "./RecordingTitleInput.js";
 import {useMutation} from "@tanstack/react-query";
 import useRecorderContext from "./useRecorderContext.js";
 import useRecordingDetailAudioTimestamp from "./hooks/useRecordingDetailAudioTimestamp.js";
+import {IRecordingTimelineState} from "./components/visualizer/TimelineVisualizer.js";
 
 // import {useRecordingNotesQuery} from "./hooks/queries/useRecordingNotesQuery";
 // import {
@@ -58,11 +59,21 @@ export default memo(function RecordingDetailScreen() {
 
   const {recordingId} = useParams();
   const [currentTime, setCurrentTime] = useState<number>(cachedDuration ?? 0);
-  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
+
+  const timelineState = useRef<IRecordingTimelineState>({
+    analyserNode: null
+  });
+
+  const onReceiveRecordingPlayerUpdate = useCallback(
+    (state: {analyserNode: IAnalyserNode<IAudioContext> | null}) => {
+      timelineState.current.analyserNode = state.analyserNode;
+    },
+    []
+  );
 
   const player = useRecordingPlayer({
     recordingId: recordingId ?? null,
-    analyserNodeRef,
+    onUpdate: onReceiveRecordingPlayerUpdate,
     setCurrentTime
   });
 
@@ -242,7 +253,7 @@ export default memo(function RecordingDetailScreen() {
             <TimelineVisualizer
               barColor={0x000000}
               backgroundColor={0xffffff}
-              analyserNodeRef={analyserNodeRef}
+              mutableStateRef={timelineState}
               canvasHeight={visualizerDimensions.height}
               canvasWidth={visualizerDimensions.width}
             />

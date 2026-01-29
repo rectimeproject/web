@@ -1,5 +1,5 @@
 import {Container, Graphics} from "pixi.js";
-import {useEffect, useMemo, useRef} from "react";
+import {RefObject, useEffect, useMemo, useRef} from "react";
 import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 
 import {memo} from "react";
@@ -18,14 +18,18 @@ function calculateRMS(buffer: Float32Array): number {
   return Math.sqrt(sum / buffer.length);
 }
 
+export interface IRecordingTimelineState {
+  analyserNode: IAnalyserNode<IAudioContext> | null;
+}
+
 export default memo(function TimelineVisualizer({
   canvasWidth,
   canvasHeight,
-  analyserNodeRef,
+  mutableStateRef: mutableStateRef,
   backgroundColor,
   barColor
 }: {
-  analyserNodeRef: React.RefObject<IAnalyserNode<IAudioContext> | null>;
+  mutableStateRef: RefObject<IRecordingTimelineState>;
   canvasWidth: number;
   canvasHeight: number;
   backgroundColor: number;
@@ -90,7 +94,7 @@ export default memo(function TimelineVisualizer({
     let timeDomainData: Float32Array | null = null;
 
     const removeTickCallback = onTick(() => {
-      const analyserNode = analyserNodeRef.current;
+      const {analyserNode} = mutableStateRef.current;
       if (analyserNode === null) {
         return;
       }
@@ -141,7 +145,7 @@ export default memo(function TimelineVisualizer({
     onTick,
     onConstruct,
     backgroundColor,
-    analyserNodeRef,
+    mutableStateRef,
     canvasWidth,
     canvasHeight
   ]);
