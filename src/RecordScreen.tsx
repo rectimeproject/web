@@ -16,7 +16,6 @@ import useRecorderDatabase from "./useRecorderDatabase.js";
 import {CodecId} from "opus-codec-worker/actions/actions.js";
 import {filesize} from "filesize";
 import Icon from "./Icon.js";
-import {IAnalyserNode, IAudioContext} from "standardized-audio-context";
 import {useNavigate} from "react-router";
 import useNavigatorStorage from "./useNavigatorStorage.js";
 import ActivityIndicator from "./ActivityIndicator.js";
@@ -29,6 +28,7 @@ import {randomUUID} from "./lib/randomUUID.js";
 import {useDebounceCallback} from "usehooks-ts";
 import {useGetRecordingByEncoderId} from "./hooks/queries/useRecordingQuery.js";
 import clsx from "clsx";
+import {IRecordingTimelineState} from "./components/visualizer/TimelineVisualizer.js";
 
 // Lazy load heavy visualizer component
 const TimelineVisualizer = lazy(
@@ -50,7 +50,9 @@ export default function RecordScreen() {
   const recording = getRecordingByEncoderId.data ?? null;
   const mediaDevices = useMediaDevices();
   const recordingListScrollViewRef = useRef<HTMLDivElement>(null);
-  const analyserNodeRef = useRef<IAnalyserNode<IAudioContext> | null>(null);
+  const visualizerState = useRef<IRecordingTimelineState>({
+    analyserNode: null
+  });
   const navigate = useNavigate();
   const navigatorStorage = useNavigatorStorage();
   const goToRecordingListScreen = useCallback(() => {
@@ -173,11 +175,11 @@ export default function RecordScreen() {
       );
 
       if (state === null || !("analyserNode" in state) || !state.analyserNode) {
-        analyserNodeRef.current = null;
+        visualizerState.current.analyserNode = null;
         return;
       }
       console.log("[RecordScreen] Setting analyserNode from recorder state");
-      analyserNodeRef.current = state.analyserNode;
+      visualizerState.current.analyserNode = state.analyserNode;
     });
   }, [recordings.isRecording, recordings.recording, recorderContext]);
   /**
@@ -320,6 +322,10 @@ export default function RecordScreen() {
       getMoreRecordings();
     }
   }, [getMoreRecordings]);
+  const toggleSettingsPanel = useCallback(
+    () => setShowSettings(!showSettings),
+    [showSettings]
+  );
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-64px)] bg-white dark:bg-black overflow-hidden">
       {/* Visualizer Section - Full height with centered content */}
@@ -369,7 +375,7 @@ export default function RecordScreen() {
               <TimelineVisualizer
                 canvasWidth={canvasContainerDimensions.width}
                 canvasHeight={canvasContainerDimensions.height}
-                analyserNodeRef={analyserNodeRef}
+                mutableStateRef={visualizerState}
                 backgroundColor={theme.colors.background}
                 barColor={theme.colors.barColor}
               />
@@ -415,7 +421,7 @@ export default function RecordScreen() {
           {/* Left: Settings button */}
           <button
             className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center cursor-pointer transition-all duration-150 text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={toggleSettingsPanel}
             aria-label="Settings"
           >
             <Icon name="settings" />
@@ -423,7 +429,28 @@ export default function RecordScreen() {
 
           {/* Center: Record button */}
           <button
-            className={`w-20 h-20 sm:w-17 sm:h-17 rounded-full ${recordings.isRecording ? "bg-linear-to-br from-orange-500 to-orange-400 animate-[pulse-recording_2s_ease-in-out_infinite]" : "bg-linear-to-br from-red-600 to-red-400"} border-0 shadow-lg-apple flex items-center justify-center cursor-pointer transition-all duration-200 text-white relative hover:scale-105 active:scale-98`}
+            className={clsx(
+              "w-20",
+              "h-20",
+              "sm:w-17",
+              "sm:h-17",
+              "rounded-full",
+              recordings.isRecording
+                ? "bg-linear-to-br from-orange-500 to-orange-400 animate-[pulse-recording_2s_ease-in-out_infinite]"
+                : "bg-linear-to-br from-red-600 to-red-400",
+              "border-0",
+              "shadow-lg-apple",
+              "flex",
+              "items-center",
+              "justify-center",
+              "cursor-pointer",
+              "transition-all",
+              "duration-200",
+              "text-white",
+              "relative",
+              "hover:scale-105",
+              "active:scale-98"
+            )}
             onClick={recordings.isRecording ? stopRecording : startRecording}
             aria-label={
               recordings.isRecording ? "Stop recording" : "Start recording"

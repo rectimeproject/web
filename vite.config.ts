@@ -5,10 +5,7 @@ export default defineConfig({
   plugins: [
     react({
       babel: {
-        plugins: [
-          ["@babel/plugin-proposal-decorators", {legacy: true}],
-          "@babel/plugin-transform-explicit-resource-management"
-        ]
+        babelrc: true
       }
     })
   ],
