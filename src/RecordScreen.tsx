@@ -322,6 +322,10 @@ export default function RecordScreen() {
       getMoreRecordings();
     }
   }, [getMoreRecordings]);
+  const toggleSettingsPanel = useCallback(
+    () => setShowSettings(!showSettings),
+    [showSettings]
+  );
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-64px)] bg-white dark:bg-black overflow-hidden">
       {/* Visualizer Section - Full height with centered content */}
@@ -417,7 +421,7 @@ export default function RecordScreen() {
           {/* Left: Settings button */}
           <button
             className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center cursor-pointer transition-all duration-150 text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={toggleSettingsPanel}
             aria-label="Settings"
           >
             <Icon name="settings" />
@@ -425,7 +429,28 @@ export default function RecordScreen() {
 
           {/* Center: Record button */}
           <button
-            className={`w-20 h-20 sm:w-17 sm:h-17 rounded-full ${recordings.isRecording ? "bg-linear-to-br from-orange-500 to-orange-400 animate-[pulse-recording_2s_ease-in-out_infinite]" : "bg-linear-to-br from-red-600 to-red-400"} border-0 shadow-lg-apple flex items-center justify-center cursor-pointer transition-all duration-200 text-white relative hover:scale-105 active:scale-98`}
+            className={clsx(
+              "w-20",
+              "h-20",
+              "sm:w-17",
+              "sm:h-17",
+              "rounded-full",
+              recordings.isRecording
+                ? "bg-linear-to-br from-orange-500 to-orange-400 animate-[pulse-recording_2s_ease-in-out_infinite]"
+                : "bg-linear-to-br from-red-600 to-red-400",
+              "border-0",
+              "shadow-lg-apple",
+              "flex",
+              "items-center",
+              "justify-center",
+              "cursor-pointer",
+              "transition-all",
+              "duration-200",
+              "text-white",
+              "relative",
+              "hover:scale-105",
+              "active:scale-98"
+            )}
             onClick={recordings.isRecording ? stopRecording : startRecording}
             aria-label={
               recordings.isRecording ? "Stop recording" : "Start recording"

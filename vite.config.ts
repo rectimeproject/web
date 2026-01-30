@@ -2,13 +2,11 @@ import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  optimizeDeps: {},
   plugins: [
     react({
       babel: {
-        plugins: [
-          ["@babel/plugin-proposal-decorators", {legacy: true}],
-          "@babel/plugin-transform-explicit-resource-management"
-        ]
+        babelrc: true
       }
     })
   ],
