@@ -10,6 +10,7 @@ import RecorderDatabase, {
 import Decoder from "../opus/Decoder.js";
 import {EventEmitter} from "eventual-js";
 import type Client from "opus-codec-worker/actions/Client.js";
+import blobToArrayBuffer from "../../blobToArrayBuffer.js";
 
 interface IPlannedPart {
   part: IRecordingPartV1;
@@ -323,7 +324,7 @@ export class RecordingPlayer extends EventEmitter<{
     {recording, decoder}: IAudioPlayerContext
   ) {
     const arrayBuffer = await decoder.decodeFloat(
-      await part.encoded.arrayBuffer()
+      await blobToArrayBuffer(part.encoded)
     );
     const samples = new Float32Array(arrayBuffer);
 

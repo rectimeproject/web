@@ -5,7 +5,7 @@ import "webrtc-adapter";
 import "./index.scss";
 import "./styles/global.css";
 import "@material-design-icons/font/index.css";
-import ReactDOM from "react-dom/client";
+import {createRoot} from "react-dom/client";
 import App from "./App.js";
 import reportWebVitals from "./reportWebVitals.js";
 import {StrictMode, Suspense, lazy} from "react";
@@ -21,9 +21,12 @@ import {SpeedInsights} from "@vercel/speed-insights/react";
 import ActivityIndicator from "./ActivityIndicator.js";
 import workletHref from "opus-codec-worker/worklet/worklet?url";
 
-const ReactQueryDevtools = lazy(async () => ({
-  default: (await import("@tanstack/react-query-devtools")).ReactQueryDevtools
-}));
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(async () => ({
+      default: (await import("@tanstack/react-query-devtools"))
+        .ReactQueryDevtools
+    }))
+  : null;
 // Lazy load route components
 const RecordingDetailScreen = lazy(
   async () => import("./RecordingDetailScreen.js")
@@ -50,7 +53,7 @@ async function render() {
     console.error("failed to find root element");
     throw new Error("Root element not found");
   }
-  const root = ReactDOM.createRoot(el);
+  const root = createRoot(el);
 
   const opus = new Opus();
   const audioContext = new AudioContext({
@@ -76,7 +79,9 @@ async function render() {
     <StrictMode>
       <SpeedInsights />
       <QueryClientProvider client={queryClient}>
-        <ReactQueryDevtools initialIsOpen={false} />
+        {ReactQueryDevtools !== null && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
         <RecorderDatabaseContext.Provider value={recorderDatabase}>
           <RecorderContext.Provider value={recorderContext}>
             <BrowserRouter>
