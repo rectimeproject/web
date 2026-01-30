@@ -100,7 +100,7 @@ export default function usePixiApplication({
         app.destroy(true, {children: true});
       });
     };
-  });
+  }, [containerRef, tickCallbacks, constructCallbacks]);
 
   const manageCallbacks = function <T>(
     callbacks: RefObject<Set<PixiCallback<T>>>
